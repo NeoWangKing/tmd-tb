@@ -46,7 +46,7 @@ static Mat TNN_vec; // 第三近邻 (6个)
 static void init_reciprocal(void)
 {
     b1x = 2*PI; b1y = -2*PI/sqrt(3.0);
-    b2x = 0;    b2y = 4*PI/sqrt(3.0);
+    b2x = 0.0;  b2y = 4*PI/sqrt(3.0);
 }
 
 static void init_symmetry(void)
@@ -81,7 +81,7 @@ static void init_vectors(void)
     // 次近邻 (NNN)
     double NNN_coords[6][2] = {
         {1.5,sqrt(3.0)/2.0}, {0.0,sqrt(3.0)}, {-1.5,sqrt(3.0)/2.0},
-        {-1.5,-sqrt(3.0)/2.0}, {0.0,-sqrt(3.0)}, {1.5,+sqrt(3.0)/2.0},
+        {-1.5,-sqrt(3.0)/2.0}, {0.0,-sqrt(3.0)}, {1.5,-sqrt(3.0)/2.0},
     };
 
     // 第三近邻 (TNN)
@@ -239,6 +239,7 @@ static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat 
         }
     }
     
+#if 1
     // 次近邻贡献
     for (int n=0; n<6; n++) {
         double phase = kx*MAT_AT(NNN_vec, n, 0) + ky*MAT_AT(NNN_vec, n, 1);
@@ -249,7 +250,9 @@ static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat 
             }
         }
     }
+#endif
     
+#if 1
     // 第三近邻贡献
     for (int n=0; n<6; n++) {
         double phase = kx*MAT_AT(TNN_vec, n, 0) + ky*MAT_AT(TNN_vec, n, 1);
@@ -260,6 +263,7 @@ static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat 
             }
         }
     }
+#endif
 }
 
 // 对角化
@@ -342,7 +346,7 @@ int main(void)
     printf("# k-path (fractional)    E1 (eV)    E2 (eV)    E3 (eV)\n");
     printf("# path: M → Γ → K → M' → K'\n");
     printf("# Symmetry points: M=0, Γ=%.6f, K=%.6f, M'=%.6f, K'=%.6f\n",
-            seg_len[0], seg_len[0]+seg_len[1], seg_len[0]+seg_len[1]+seg_len[2], total_len);
+            (seg_len[0])/(2*PI), (seg_len[0]+seg_len[1])/(2*PI), (seg_len[0]+seg_len[1]+seg_len[2])/(2*PI), (total_len)/(2*PI));
 
     double cumulative = 0.0;
     double complex Hgamma[3][3];
@@ -381,6 +385,7 @@ int main(void)
 
             double d = t * seg_len[s];
             double xcoord = cumulative + d;
+            xcoord /= 2*PI;
             printf("%12.6f %12.6f %12.6f %12.6f\n", xcoord, eig[0], eig[1], eig[2]);
 
         }

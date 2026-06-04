@@ -25,16 +25,16 @@ typedef struct {
     size_t rows;
     size_t cols;
     size_t stride;
-    float *es;
+    double *es;
 } Mat;
 #define MAT_AT(m, i, j) (m).es[(i)*(m).stride + (j)]
 
 Mat   mat_alloc(size_t rows, size_t cols);
 void  mat_copy(Mat dst, Mat src);
-Mat   mat_def(size_t rows, size_t cols, float *es);
+Mat   mat_def(size_t rows, size_t cols, double *es);
 void  mat_unit(Mat dst);
-void  mat_fill(Mat dst, float x);
-void  mat_times(Mat dst, float x);
+void  mat_fill(Mat dst, double x);
+void  mat_times(Mat dst, double x);
 void  mat_sum(Mat dst, Mat a);
 void  mat_sub(Mat dst, Mat a);
 void  mat_dot(Mat dst, Mat a, Mat b);
@@ -69,7 +69,7 @@ void mat_copy(Mat dst, Mat src)
     }
 }
 
-Mat mat_def(size_t rows, size_t cols, float *es)
+Mat mat_def(size_t rows, size_t cols, double *es)
 {
     MAT_ASSERT(es != NULL);
     Mat m = mat_alloc(rows, cols);
@@ -94,7 +94,7 @@ void mat_unit(Mat dst)
     }
 }
 
-void mat_fill(Mat dst, float x)
+void mat_fill(Mat dst, double x)
 {
     for (size_t i = 0; i < dst.rows; ++i) {
         for (size_t j = 0; j < dst.cols; ++j) {
@@ -103,7 +103,7 @@ void mat_fill(Mat dst, float x)
     }
 }
 
-void mat_times(Mat dst, float x) {
+void mat_times(Mat dst, double x) {
     for (size_t i = 0; i < dst.rows; ++i) {
         for (size_t j = 0; j < dst.cols; ++j) {
             MAT_AT(dst, i, j) *= x;
