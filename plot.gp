@@ -4,12 +4,17 @@ set terminal qt font "Arial,12" size 800,600
 # set terminal pngcairo font "Arial,12" size 800,600
 # set output "band.png"
 
+map(x) = (x <= 0.577350) ? 0 + (x-0)*(0.180988-0)/(0.577350-0) : \
+         (x <= 1.244017) ? 0.180988 + (x-0.577350)*(0.389974-0.180988)/(1.244017-0.577350) : \
+         (x <= 1.577350) ? 0.389974 + (x-1.244017)*(0.494467-0.389974)/(1.577350-1.244017) : \
+         (x <= 1.910684) ? 0.494467 + (x-1.577350)*(0.598960-0.494467)/(1.910684-1.577350) : 0.598960
+
 # 定义对称点坐标（根据你的程序输出）
-M  = 0.0
-G  = 0.577350
-K  = 1.244017
-Mp = 1.577350
-Kp = 1.910684
+M  = map(0.0)
+G  = map(0.577350)
+K  = map(1.244017)
+Mp = map(1.577350)
+Kp = map(1.910684)
 
 # 设置坐标轴标签和范围
 set xlabel "k-path"
@@ -28,10 +33,16 @@ set arrow from K,  graph 0 to K,  graph 1 nohead lc black lw 0.5 front
 set arrow from Mp, graph 0 to Mp, graph 1 nohead lc black lw 0.5 front
 set arrow from Kp, graph 0 to Kp, graph 1 nohead lc black lw 0.5 front
 
-# 画横线
-set arrow from graph 0,  0 to graph 1,  0 nohead lc black lw 0.5 front
+stats "band.dat" using 2 nooutput
+c_vbm = STATS_max
+
+# 读取 VASP 数据文件的价带顶（这里 VASP 有 16 条带，我们取所有带的最大值）
+stats "MoS2-pbe.txt" using 10 nooutput
+vasp_vbm = STATS_max
 
 # 绘图：三条能带全部用蓝色（lc "blue"），线宽 3（lw 3）
-plot "band.dat" using 1:2 with lines lc "blue" lw 3 title "E1", \
-     "band.dat" using 1:3 with lines lc "blue" lw 3 title "E2", \
-     "band.dat" using 1:4 with lines lc "blue" lw 3 title "E3"
+plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
+     for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
+     "band.dat" using (map($1)):($2 - c_vbm) with lines lc "blue" lw 3 dt 2 title "TightBinding", \
+     "band.dat" using (map($1)):($3 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
+     "band.dat" using (map($1)):($4 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \

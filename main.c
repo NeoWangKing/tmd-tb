@@ -4,36 +4,14 @@
 #include <lapacke.h> 
 #include "mat.h"
 
+#define NN_MODEL 1
+#define NNN_MODEL 1
+#define SOC_MODEL 0
+#include "params.h"
+
 #define PI 3.14159265358979323846
 
 static double b1x, b1y, b2x, b2y;
-
-// 模型参数
-static const double e1  =  0.683;
-static const double e2  =  1.707;
-
-// 最近邻参数 (NN)
-static const double t11 = -0.146;
-static const double t12 =  0.114;
-static const double t13 =  0.506;
-static const double t22 =  0.085;
-static const double t23 =  0.162;
-static const double t33 =  0.073;
-
-// 次近邻参数 (NNN)
-static const double r11 =  0.060;
-static const double r12 = -0.236;
-static const double r21 =  0.067;
-static const double r22 =  0.016;
-static const double r23 =  0.087;
-
-// 第三近邻参数 (TNN)
-static const double u11 = -0.038;
-static const double u12 =  0.046;
-static const double u13 =  0.001;
-static const double u22 =  0.266;
-static const double u23 = -0.176;
-static const double u33 = -0.150;
 
 static Mat C3; // 绕z轴旋转120° (C3)
 static Mat Sh; // 关于xy平面的反射 (S_h)
@@ -72,38 +50,36 @@ static void init_symmetry(void)
 
 static void init_vectors(void)
 {
+#if NN_MODEL
     // 最近邻 (NN)
-    double NN_coords[6][2] = {
-        {1.0,0.0}, {0.5,sqrt(3.0)/2.0}, {-0.5,sqrt(3.0)/2.0},
-        {-1.0,0.0}, {-0.5,-sqrt(3.0)/2.0}, {0.5,-sqrt(3.0)/2.0}
-    };
+    NN_vec  = mat_alloc(6, 2);
+    MAT_AT(NN_vec, 0, 0) =  1.0; MAT_AT(NN_vec, 0, 1) =  0.0;
+    MAT_AT(NN_vec, 1, 0) =  0.5; MAT_AT(NN_vec, 1, 1) =  sqrt(3.0)/2.0;
+    MAT_AT(NN_vec, 2, 0) = -0.5; MAT_AT(NN_vec, 2, 1) =  sqrt(3.0)/2.0;
+    MAT_AT(NN_vec, 3, 0) = -1.0; MAT_AT(NN_vec, 3, 1) =  0.0;
+    MAT_AT(NN_vec, 4, 0) = -0.5; MAT_AT(NN_vec, 4, 1) = -sqrt(3.0)/2.0;
+    MAT_AT(NN_vec, 5, 0) =  0.5; MAT_AT(NN_vec, 5, 1) = -sqrt(3.0)/2.0;
 
+#if NNN_MODEL
     // 次近邻 (NNN)
-    double NNN_coords[6][2] = {
-        {1.5,sqrt(3.0)/2.0}, {0.0,sqrt(3.0)}, {-1.5,sqrt(3.0)/2.0},
-        {-1.5,-sqrt(3.0)/2.0}, {0.0,-sqrt(3.0)}, {1.5,-sqrt(3.0)/2.0},
-    };
+    NNN_vec = mat_alloc(6, 2);
+    MAT_AT(NNN_vec, 0, 0) =  1.5; MAT_AT(NNN_vec, 0, 1) =  sqrt(3.0)/2.0;
+    MAT_AT(NNN_vec, 1, 0) =  0.0; MAT_AT(NNN_vec, 1, 1) =  sqrt(3.0);
+    MAT_AT(NNN_vec, 2, 0) = -1.5; MAT_AT(NNN_vec, 2, 1) =  sqrt(3.0)/2.0;
+    MAT_AT(NNN_vec, 3, 0) = -1.5; MAT_AT(NNN_vec, 3, 1) = -sqrt(3.0)/2.0;
+    MAT_AT(NNN_vec, 4, 0) =  0.0; MAT_AT(NNN_vec, 4, 1) = -sqrt(3.0);
+    MAT_AT(NNN_vec, 5, 0) =  1.5; MAT_AT(NNN_vec, 5, 1) = -sqrt(3.0)/2.0;
 
     // 第三近邻 (TNN)
-    double TNN_coords[6][2] = {
-        {2.0,0.0}, {1.0,sqrt(3.0)}, {-1.0,sqrt(3.0)},
-        {-2.0,0.0}, {-1.0,-sqrt(3.0)}, {1.0,-sqrt(3.0)}
-    };
-
-    NN_vec  = mat_alloc(6, 2);
-    NNN_vec = mat_alloc(6, 2);
     TNN_vec = mat_alloc(6, 2);
-
-    for (size_t i = 0; i < 6; ++i) {
-        MAT_AT(NN_vec,  i, 0) = NN_coords[i][0];
-        MAT_AT(NN_vec,  i, 1) = NN_coords[i][1];
-
-        MAT_AT(NNN_vec, i, 0) = NNN_coords[i][0];
-        MAT_AT(NNN_vec, i, 1) = NNN_coords[i][1];
-
-        MAT_AT(TNN_vec, i, 0) = TNN_coords[i][0];
-        MAT_AT(TNN_vec, i, 1) = TNN_coords[i][1];
-    }
+    MAT_AT(TNN_vec, 0, 0) =  2.0; MAT_AT(TNN_vec, 0, 1) =  0.0;
+    MAT_AT(TNN_vec, 1, 0) =  1.0; MAT_AT(TNN_vec, 1, 1) =  sqrt(3.0);
+    MAT_AT(TNN_vec, 2, 0) = -1.0; MAT_AT(TNN_vec, 2, 1) =  sqrt(3.0);
+    MAT_AT(TNN_vec, 3, 0) = -2.0; MAT_AT(TNN_vec, 3, 1) =  0.0;
+    MAT_AT(TNN_vec, 4, 0) = -1.0; MAT_AT(TNN_vec, 4, 1) = -sqrt(3.0);
+    MAT_AT(TNN_vec, 5, 0) =  1.0; MAT_AT(TNN_vec, 5, 1) = -sqrt(3.0);
+#endif // NNN_MODEL
+#endif // NN_MODEL
 }
 
 // 对实数矩阵施加对称操作： M' = op * M * op^T
@@ -115,30 +91,35 @@ void apply_symmetry(Mat Mout, Mat op, Mat Min)
     mat_dot(Mout, tmp, opT);
 }
 
+#if NN_MODEL
 // 最近邻 E(R1) 
 static void build_E_NN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  t11;             MAT_AT(E, 0, 1) =  t12; MAT_AT(E, 0, 2) = t13;
-    MAT_AT(E, 1, 0) = -t12;             MAT_AT(E, 1, 1) =  t22; MAT_AT(E, 1, 2) = t23;
-    MAT_AT(E, 2, 0) =  t13;             MAT_AT(E, 2, 1) = -t23; MAT_AT(E, 2, 2) = t33;
+    MAT_AT(E, 0, 0) =  t11; MAT_AT(E, 0, 1) =  t12; MAT_AT(E, 0, 2) = t13;
+    MAT_AT(E, 1, 0) = -t12; MAT_AT(E, 1, 1) =  t22; MAT_AT(E, 1, 2) = t23;
+    MAT_AT(E, 2, 0) =  t13; MAT_AT(E, 2, 1) = -t23; MAT_AT(E, 2, 2) = t33;
 }
 
+#if NNN_MODEL
 // 次近邻 E(~R1)
 static void build_E_NNN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  r11;             MAT_AT(E, 0, 1) = r12;  MAT_AT(E, 0, 2) = -r12/sqrt(3.0);
-    MAT_AT(E, 1, 0) =  r21;             MAT_AT(E, 1, 1) = r22;  MAT_AT(E, 1, 2) = r23;
-    MAT_AT(E, 2, 0) = -r21/sqrt(3.0); MAT_AT(E, 2, 1) = r23;  MAT_AT(E, 2, 2) = r22 + 2*r23/sqrt(3.0);
+    MAT_AT(E, 0, 0) =  r11;           MAT_AT(E, 0, 1) = r12; MAT_AT(E, 0, 2) = -r12/sqrt(3.0);
+    MAT_AT(E, 1, 0) =  r21;           MAT_AT(E, 1, 1) = r22; MAT_AT(E, 1, 2) = r23;
+    MAT_AT(E, 2, 0) = -r21/sqrt(3.0); MAT_AT(E, 2, 1) = r23; MAT_AT(E, 2, 2) = r22 + 2*r23/sqrt(3.0);
 }
 
 // 第三近邻 E(2R1)
 static void build_E_TNN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  u11;             MAT_AT(E, 0, 1) =  u12; MAT_AT(E, 0, 2) = u13;
-    MAT_AT(E, 1, 0) = -u12;             MAT_AT(E, 1, 1) =  u22; MAT_AT(E, 1, 2) = u23;
-    MAT_AT(E, 2, 0) =  u13;             MAT_AT(E, 2, 1) = -u23; MAT_AT(E, 2, 2) = u33;
+    MAT_AT(E, 0, 0) =  u11; MAT_AT(E, 0, 1) =  u12; MAT_AT(E, 0, 2) = u13;
+    MAT_AT(E, 1, 0) = -u12; MAT_AT(E, 1, 1) =  u22; MAT_AT(E, 1, 2) = u23;
+    MAT_AT(E, 2, 0) =  u13; MAT_AT(E, 2, 1) = -u23; MAT_AT(E, 2, 2) = u33;
 }
+#endif // NNN_NODEL
+#endif // NN_NODEL
 
+#if NN_MODEL
 static void generate_hopping_matrices_NN(Mat mats[6])
 {
     Mat C3sq = mat_alloc(3, 3);
@@ -162,6 +143,7 @@ static void generate_hopping_matrices_NN(Mat mats[6])
     apply_symmetry(mats[5], sigmaC3sq, mats[0]);
 }
 
+#if NNN_MODEL
 static void generate_hopping_matrices_TNN(Mat mats[6])
 {
     Mat C3sq = mat_alloc(3, 3);
@@ -206,9 +188,10 @@ static void generate_hopping_matrices_NNN(Mat mats[6])
     // R̃6 = C3 · R̃4
     apply_symmetry(mats[5], Sv, mats[3]);
 }
+#endif // NNN_MODEL
+#endif // NN_MODEL
 
 // k 空间哈密顿量构造
-// 将 k 点分数坐标(f1,f2)转换为笛卡尔波矢
 static void frac_to_cart_k(double f1, double f2, double *kx, double *ky)
 {
     *kx = f1 * b1x + f2 * b2x;
@@ -239,7 +222,7 @@ static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat 
         }
     }
     
-#if 1
+#if NNN_MODEL
     // 次近邻贡献
     for (int n=0; n<6; n++) {
         double phase = kx*MAT_AT(NNN_vec, n, 0) + ky*MAT_AT(NNN_vec, n, 1);
@@ -250,9 +233,6 @@ static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat 
             }
         }
     }
-#endif
-    
-#if 1
     // 第三近邻贡献
     for (int n=0; n<6; n++) {
         double phase = kx*MAT_AT(TNN_vec, n, 0) + ky*MAT_AT(TNN_vec, n, 1);
@@ -328,9 +308,13 @@ int main(void)
         NNN_mats[i] = mat_alloc(3, 3);
         TNN_mats[i] = mat_alloc(3, 3);
     }
+#if NN_MODEL
     generate_hopping_matrices_NN(NN_mats);
+#if NNN_MODEL
     generate_hopping_matrices_NNN(NNN_mats);
     generate_hopping_matrices_TNN(TNN_mats);
+#endif
+#endif
 
     double total_len = 0.0;
     double seg_len[num_segments];
