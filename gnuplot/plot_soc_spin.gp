@@ -1,8 +1,8 @@
 # 设置终端
-set terminal qt font "Arial,12" size 800,600
+# set terminal qt font "Arial,12" size 800,600
 # 若需要保存为 PNG，取消下面两行的注释，并注释上面的 qt 行
-# set terminal pngcairo font "Arial,12" size 800,600
-# set output "TB-NN-NNN-TNN-SOC.png"
+set terminal pngcairo font "Arial,12" size 800,600
+set output "img/TB-NN-NNN-TNN-SOC-SPIN.png"
 
 map(x) = (x <= 0.577350) ? 0 + (x-0)*(0.180988-0)/(0.577350-0) : \
          (x <= 1.244017) ? 0.180988 + (x-0.577350)*(0.389974-0.180988)/(1.244017-0.577350) : \
@@ -40,12 +40,12 @@ c_vbm = -0.061000
 stats "MoS2-pbe.txt" using 10 nooutput
 vasp_vbm = STATS_max
 
-# 绘图：三条能带全部用蓝色（lc "blue"），线宽 3（lw 3）
+# 绘制：VASP PBE 用橙色，TB 自旋上用红色，TB 自旋下用蓝色
 plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
      for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
-     "band_soc.dat" using (map($1)):($2 - c_vbm) with lines lc "blue" lw 3 dt 2 title "TB-NN-NNN-TNN-SOC", \
-     "band_soc.dat" using (map($1)):($3 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "band_soc.dat" using (map($1)):($4 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "band_soc.dat" using (map($1)):($5 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "band_soc.dat" using (map($1)):($6 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "band_soc.dat" using (map($1)):($7 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
+     "data/band_soc_spin.dat" using (map($1)):($2 - c_vbm) with lines lc "red" lw 3 dt 2 title "spin up", \
+     "data/band_soc_spin.dat" using (map($1)):($3 - c_vbm) with lines lc "red" lw 3 dt 2 notitle, \
+     "data/band_soc_spin.dat" using (map($1)):($4 - c_vbm) with lines lc "red" lw 3 dt 2 notitle, \
+     "data/band_soc_spin.dat" using (map($1)):($5 - c_vbm) with lines lc "blue" lw 3 dt 2 title "spin down", \
+     "data/band_soc_spin.dat" using (map($1)):($6 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
+     "data/band_soc_spin.dat" using (map($1)):($7 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle
