@@ -6,8 +6,8 @@
 #define NN_MODEL 1
 #endif
 
-#ifndef TNN_MODEL
-#define TNN_MODEL 1
+#ifndef NNN_MODEL
+#define NNN_MODEL 1
 #endif
 
 #ifndef SOC_MODEL
@@ -15,7 +15,7 @@
 #endif
 
 #if NN_MODEL
-    #if TNN_MODEL
+    #if NNN_MODEL
         static const double e1  =  0.683;
         static const double e2  =  1.707;
 

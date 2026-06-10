@@ -1,7 +1,7 @@
 # 设置终端
-# set terminal qt font "Arial,12" size 800,600
+# set terminal qt font "Arial,12" size 800,600 enhanced
 # 若需要保存为 PNG，取消下面两行的注释，并注释上面的 qt 行
-set terminal pngcairo font "Arial,12" size 800,600
+set terminal pngcairo font "Arial,12" size 800,600 enhanced
 set output "img/TB-NN-NNN-TNN-SOC.png"
 
 map(x) = (x <= 0.577350) ? 0 + (x-0)*(0.180988-0)/(0.577350-0) : \
@@ -40,7 +40,7 @@ c_vbm = -0.061000
 stats "MoS2-pbe.txt" using 10 nooutput
 vasp_vbm = STATS_max
 
-# 绘图：三条能带全部用蓝色（lc "blue"），线宽 3（lw 3）
+set dashtype 2 (3,3)
 plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
      for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
      "data/band_soc.dat" using (map($1)):($2 - c_vbm) with lines lc "blue" lw 3 dt 2 title "TB-NN-NNN-TNN-SOC", \
