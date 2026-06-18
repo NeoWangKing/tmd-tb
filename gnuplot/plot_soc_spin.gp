@@ -37,12 +37,12 @@ set arrow from Kp, graph 0 to Kp, graph 1 nohead lc black lw 0.5 front
 c_vbm = -0.061000
 
 # 读取 VASP 数据文件的价带顶（这里 VASP 有 16 条带，我们取所有带的最大值）
-stats "MoS2-pbe.txt" using 10 nooutput
+stats "MoS2-pbe-ncl.txt" using 18 nooutput
 vasp_vbm = STATS_max
 
 set dashtype 2 (3,3)
-plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
-     for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
+plot "MoS2-pbe-ncl.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
+     for [col=3:33] "MoS2-pbe-ncl.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
      "data/band_soc_spin.dat" using (map($1)):($2 - c_vbm) with lines lc "red" lw 3 dt 2 title "spin up", \
      "data/band_soc_spin.dat" using (map($1)):($3 - c_vbm) with lines lc "red" lw 3 dt 2 notitle, \
      "data/band_soc_spin.dat" using (map($1)):($4 - c_vbm) with lines lc "red" lw 3 dt 2 notitle, \

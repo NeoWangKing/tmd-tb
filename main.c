@@ -143,8 +143,8 @@ static void generate_hopping_matrices_NN(Mat mats[6])
     // R3 = C3 -> R1
     apply_symmetry(mats[2], C3, mats[0]);
     // R4 = (R1)T
-    apply_symmetry(mats[3], Sv, mats[0]);   // σv * HR1 * σv^T
-                                            // R5 = C3^2 -> R1
+    apply_symmetry(mats[3], Sv, mats[0]);
+    // R5 = C3^2 -> R1
     apply_symmetry(mats[4], C3sq, mats[0]);
     // R6 = Sv*C3*C3 -> R1
     apply_symmetry(mats[5], sigmaC3sq, mats[0]);
@@ -167,8 +167,8 @@ static void generate_hopping_matrices_TNN(Mat mats[6])
     // R3 = C3 -> R1
     apply_symmetry(mats[2], C3, mats[0]);
     // R4 = (R1)T
-    apply_symmetry(mats[3], Sv, mats[0]);   // σv * HR1 * σv^T
-                                            // R5 = C3^2 -> R1
+    apply_symmetry(mats[3], Sv, mats[0]);
+    // R5 = C3^2 -> R1
     apply_symmetry(mats[4], C3sq, mats[0]);
     // R6 = Sv*C3*C3 -> R1
     apply_symmetry(mats[5], sigmaC3sq, mats[0]);

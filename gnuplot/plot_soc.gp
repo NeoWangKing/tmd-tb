@@ -36,16 +36,12 @@ set arrow from Kp, graph 0 to Kp, graph 1 nohead lc black lw 0.5 front
 # 从注释行读取 TB 的 Gamma 点价带顶
 c_vbm = -0.061000
 
-# 读取 VASP 数据文件的价带顶（这里 VASP 有 16 条带，我们取所有带的最大值）
-stats "MoS2-pbe.txt" using 10 nooutput
+# 读取 VASP 数据文件的价带顶
+stats "MoS2-pbe-ncl.txt" using 18 nooutput
 vasp_vbm = STATS_max
 
 set dashtype 2 (3,3)
-plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
-     for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
+plot "MoS2-pbe-ncl.txt" using 1:($2 - vasp_vbm)  with lines lc "orange" lw 4 title "VASP PBE", \
+     for [col=3:33] "MoS2-pbe-ncl.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
      "data/band_soc.dat" using (map($1)):($2 - c_vbm) with lines lc "blue" lw 3 dt 2 title "TB-NN-NNN-TNN-SOC", \
-     "data/band_soc.dat" using (map($1)):($3 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "data/band_soc.dat" using (map($1)):($4 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "data/band_soc.dat" using (map($1)):($5 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "data/band_soc.dat" using (map($1)):($6 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
-     "data/band_soc.dat" using (map($1)):($7 - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
+     for [col=3:7] "data/band_soc.dat" using (map($1)):(column(col) - c_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
