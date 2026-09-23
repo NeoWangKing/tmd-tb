@@ -15,6 +15,12 @@
 #include "tb.h"
 #include "herm3.h"
 
+// 这个拟合要 19 个参数；不打开 NNN_MODEL 的话 r/u 恒为 0，等于退化成只有 NN 的模型，
+// 而且不会报任何错 —— 所以这里直接编译期拦住。
+#if !NNN_MODEL
+#error "opt_main.c 必须用 -DNNN_MODEL=1 编译（见 build.sh）"
+#endif
+
 #define NP 19            // e1,e2 + 6 个 t + 5 个 r + 6 个 u
 
 // 参与拟合的带对：TB 第 TB_PAIR[i] 条 <-> GW 第 GW_PAIR[i] 条
@@ -119,7 +125,8 @@ int main(void)
         double d = fabs(cum / A_ANG - gw.k[i]);
         if (d > dk) dk = d;
     }
-    printf("拟合：GW 参考 vs 三能带模型（全路径，%d 个 k 点，%d 条带）\n", nk, NPAIR);
+    printf("拟合：GW 参考 vs 三能带模型（NN + NNN + TNN，%d 个参数）\n", NP);
+    printf("      全路径 %d 个 k 点，%d 条带\n", nk, NPAIR);
     printf("  k 点自检：由 .kpt 重建的路径长度与参考文件最大差 %.2e Å^-1\n", dk);
     if (dk > 1e-4) { fprintf(stderr, "[ERROR] k 点重建与参考不一致，检查坐标约定\n"); return 1; }
 
