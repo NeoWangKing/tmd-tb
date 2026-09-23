@@ -3,9 +3,11 @@
 # ---------------------------------------------------------------------------
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/TB-NN-NNN-TNN-SOC-SPIN.png"
+# pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
+if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal pngcairo font "Arial,12" size 800,600 enhanced
+  set terminal @GTERM font "Arial,12" size 800,600 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {

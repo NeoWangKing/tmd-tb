@@ -3,9 +3,11 @@
 #   下：每条曲线在各 k 取自哪个排序块（10..14）—— 台阶跳变处就是"换身份"的位置
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-reconnect.png"
+# pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
+if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal pngcairo font "Arial,11" size 950,780 enhanced
+  set terminal @GTERM font "Arial,11" size 950,780 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {

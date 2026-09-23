@@ -4,9 +4,11 @@
 #   TB（GW 参数，PARAM_SET=2）: data/band_gwfit.dat
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-params-landed.png"
+# pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
+if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal pngcairo font "Arial,11" size 950,620 enhanced
+  set terminal @GTERM font "Arial,11" size 950,620 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {

@@ -2,9 +2,11 @@
 # 数据由 bin/fit_main 生成（读 data/band_gw.dat 与 GW 参考能带）
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-residual.png"
+# pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
+if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal pngcairo font "Arial,12" size 900,600 enhanced
+  set terminal @GTERM font "Arial,12" size 900,600 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {
