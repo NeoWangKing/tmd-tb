@@ -206,6 +206,32 @@ int main(void)
     for (int j = 0; j < NP; ++j)
         printf("  %-4s %+8.4f -> %+8.4f\n", nm[j], p0[j], p[j]);
 
+    // 歧义诊断：GW 数据是按能量排序的，两条能带交叉处排序曲线会互换身份。
+    // 这里统计"候选能级里有两条靠得太近"的 k 点（那里的配对不可信），
+    // 并给出只在这些点之外统计的 RMS。
+    {
+        const double eps = 0.02;   // 近简并判据 (eV)
+        int namb = 0;
+        double e1 = 0, e2 = 0;
+        for (int i = 0; i < nk; ++i) {
+            int amb = 0;
+            for (int a = 0; a < 3 && !amb; ++a)
+                for (int b = a + 1; b < 3; ++b) {
+                    double da = gw_ref[a][i] - gw_ref[b][i];
+                    if (fabs(da) < eps) amb = 1;
+                }
+            if (amb) namb++;
+            for (int b = 0; b < NPAIR; ++b) {
+                double d = gw_ref[b][i] - tb[b * nk + i];
+                if (amb) e2 += d * d; else e1 += d * d;
+            }
+        }
+        printf("\n配对歧义诊断（|ΔE| < %.2f eV 视为分不清是哪条物理能带）：\n", eps);
+        printf("  歧义 k 点 %d/%d（%.0f%%）\n", namb, nk, 100.0 * namb / nk);
+        printf("  无歧义点上的 RMS = %.4f eV（全部点 %.4f eV）\n",
+               sqrt(e1 / ((double)NPAIR * (nk - namb))), sqrt((e1 + e2) / ((double)NPAIR * nk)));
+    }
+
     printf("\n高对称点残差 E_GW − E_TB (eV)：初值 -> 拟合后\n");
     printf("%-4s", "点");
     for (int b = 0; b < NPAIR; ++b) printf("   TB%d↔GW%-2d", TB_PAIR[b], GW_PAIR[b]);
