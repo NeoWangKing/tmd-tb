@@ -198,7 +198,7 @@ int main(void)
         printf("\n");
 
         // 写出重连结果，供 plot_reconnect.gp 直观检查
-        FILE *fo = fopen("data/band_track.dat", "w");
+        FILE *fo = fopen("data/gw_reconnect.dat", "w");
         if (fo) {
             fprintf(fo, "# col1: k (Å^-1)\n");
             fprintf(fo, "# col2-%d : 排序块 %d..%d（原始数据）\n", 1 + NCAND, CAND_FIRST, CAND_LAST);
