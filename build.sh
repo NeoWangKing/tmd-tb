@@ -8,7 +8,8 @@ CC=${CC:-}
 if [ -z "$CC" ]; then
     if command -v clang >/dev/null 2>&1; then CC=clang; else CC=cc; fi
 fi
-CFLAGS="-Wall -Wextra -std=c99 -O2"
+CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Isrc"
+SRC="main.c src/mat.c src/tb.c src/herm3.c src/kpath.c"
 
 mkdir -p bin data img
 
@@ -17,7 +18,7 @@ mkdir -p bin data img
 build_run() {
     name=$1
     shift
-    "$CC" $CFLAGS -o "bin/main_$name" main.c "$@" -lm
+    "$CC" $CFLAGS -o "bin/main_$name" $SRC "$@" -lm
     "./bin/main_$name" > "data/band_$name.dat"
     if [ -f "gnuplot/plot_$name.gp" ]; then
         gnuplot "gnuplot/plot_$name.gp"

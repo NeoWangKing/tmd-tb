@@ -1,10 +1,6 @@
 #ifndef MAT_H_
 #define MAT_H_
 
-#ifndef MAT_H_IMPLEMENTATION
-#define MAT_H_IMPLEMENTATION
-#endif
-
 #include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -38,12 +34,11 @@ void  mat_times(Mat dst, double x);
 void  mat_sum(Mat dst, Mat a);
 void  mat_sub(Mat dst, Mat a);
 void  mat_dot(Mat dst, Mat a, Mat b);
+void  mat_transpose(Mat dst, Mat a);
 void  mat_print(Mat dst, const char *name, size_t padding);
 
 #define MAT_PRINT(m) mat_print(m, #m, 0)
 #define ARRAY_LEN(xs) sizeof((xs))/sizeof((xs)[0])
-
-#endif // MAT_H_
 
 #ifdef MAT_H_IMPLEMENTATION
 
@@ -180,3 +175,5 @@ void mat_print(Mat dst, const char *name, size_t padding)
 
 
 #endif // MAT_H_IMPLEMENTATION
+
+#endif // MAT_H_
