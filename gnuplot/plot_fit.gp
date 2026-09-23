@@ -1,4 +1,4 @@
-# 拟合诊断：GW 参考能带与当前 TB 的残差曲线
+# 拟合诊断：GW 参考能带（重连成物理能带后）与当前 TB 的残差曲线
 # 数据由 bin/fit_main 生成（读 data/band_gw.dat 与 GW 参考能带）
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-residual.png"

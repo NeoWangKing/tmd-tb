@@ -14,6 +14,11 @@
 // 比较的带对：TB 第 TB_BAND[i] 条  <->  GW 第 GW_BAND[i] 条
 static const int TB_BAND[3] = {1, 2, 3};
 static const int GW_BAND[3] = {9, 10, 11};
+
+// 候选能级范围（用于重连）：覆盖最低的几条导带
+#define CAND_FIRST 10
+#define CAND_LAST  14
+#define NCAND      (CAND_LAST - CAND_FIRST + 1)
 static const char *PAIR[3]  = {"价带  VB ", "导带1 CB1", "导带2 CB2"};
 
 // GW 路径上的高对称点位置 (Å^-1)，取自 wannier90_band.labelinfo.dat
@@ -56,6 +61,34 @@ int main(void)
         fprintf(stderr, "[ERROR] 读 TB 能带失败，先跑 ./build.sh 的 gw 目标\n");
         return 1;
     }
+    // 重连：wannier90 的能带按能量排序，交叉处排序曲线会互换身份。
+    // 价带（第 9 条）本身与上下都分得开，直接用；两条导带用重连后的物理能带。
+    static double *gwref[3];
+    {
+        double *cand = malloc(sizeof(double) * NCAND * gw.nk);
+        double *rec  = malloc(sizeof(double) * NCAND * gw.nk);
+        for (int c = 0; c < NCAND; ++c)
+            memcpy(cand + c * gw.nk, gw.E + (CAND_FIRST - 1 + c) * gw.nk, sizeof(double) * gw.nk);
+
+        int anchor = 0;
+        for (int i = 1; i < gw.nk; ++i)
+            if (fabs(gw.k[i] - 1.31633) < fabs(gw.k[anchor] - 1.31633)) anchor = i;
+        if (band_track(gw.nk, NCAND, cand, anchor, rec)) { fprintf(stderr, "[ERROR] 重连失败\n"); return 1; }
+
+        double r0 = 0, r1 = 0;
+        for (int c = 0; c < NCAND; ++c)
+            for (int i = 1; i < gw.nk - 1; ++i) {
+                double d0 = cand[c*gw.nk+i+1] - 2*cand[c*gw.nk+i] + cand[c*gw.nk+i-1];
+                double d1 = rec[c*gw.nk+i+1]  - 2*rec[c*gw.nk+i]  + rec[c*gw.nk+i-1];
+                r0 += d0*d0; r1 += d1*d1;
+            }
+        printf("GW 参考能带重连（斜率外推，锚点 = K）：粗糙度 %.5f -> %.5f\n", r0, r1);
+
+        gwref[0] = gw.E + (GW_BAND[0] - 1) * gw.nk;      // 价带：本身就是干净的
+        gwref[1] = rec + 0 * gw.nk;                      // 物理导带 1
+        gwref[2] = rec + 1 * gw.nk;                      // 物理导带 2
+    }
+
     double *k  = malloc(sizeof *k  * tb_n);
     double *E  = malloc(sizeof *E  * tb_n * TB_NBAND);
     nk = dedup(tb_n, tb_k, tb_e, TB_NBAND, k, E);
@@ -85,7 +118,7 @@ int main(void)
     printf("------------------------------------------------------------------------------\n");
     for (int b = 0; b < 3; ++b) {
         const double *tb  = E + (TB_BAND[b] - 1);
-        const double *gwv = gw.E + (GW_BAND[b] - 1) * gw.nk;
+        const double *gwv = gwref[b];
         double *rb = R + b * nk, *rsb = RS + b * nk, *rlb = RL + b * nk;
 
         double mx = 0, my = 0;
