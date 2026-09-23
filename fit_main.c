@@ -84,9 +84,12 @@ int main(void)
             }
         printf("GW 参考能带重连（斜率外推，锚点 = K）：粗糙度 %.5f -> %.5f\n", r0, r1);
 
-        gwref[0] = gw.E + (GW_BAND[0] - 1) * gw.nk;      // 价带：本身就是干净的
+        // 模型的两条导带在 Γ 点简并（e2 二重态），对应的 GW 物理能带也应当在 Γ 简并：
+        // 物理带 1 与物理带 3 在 Γ 点都是 2.2049（简并 ✓），而物理带 2 是 2.0331 ✗，
+        // 所以导带配对取 (物理带1, 物理带3)。
+        gwref[0] = gw.E + (GW_BAND[0] - 1) * gw.nk;      // 价带：本身就干净
         gwref[1] = rec + 0 * gw.nk;                      // 物理导带 1
-        gwref[2] = rec + 1 * gw.nk;                      // 物理导带 2
+        gwref[2] = rec + 2 * gw.nk;                      // 物理导带 3
     }
 
     double *k  = malloc(sizeof *k  * tb_n);

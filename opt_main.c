@@ -43,6 +43,16 @@ static const int GW_PAIR[3] = {9, 10, 11};
 #define RECONNECT 1
 #endif
 
+// 模型的导带 2/3 分别对到重连后的哪条物理带（0 = 物理带1）
+//   0,1 = 最低两条（物理带 1、2）
+//   0,2 = 物理带 1、3 —— 它们在 Γ 点简并，与模型的两条导带（e2 二重态）一致
+#ifndef CB_PICK_A
+#define CB_PICK_A 0
+#endif
+#ifndef CB_PICK_B
+#define CB_PICK_B 2
+#endif
+
 // GW 路径上的高对称点位置 (Å^-1)，用于报告分区残差
 static const double SYM_K[3]  = {0.0, 1.31633, 1.97450};
 static const char  *SYM_NM[3] = {"Γ", "K", "M"};
@@ -52,6 +62,7 @@ static double *kx, *ky;        // TB 单位（1/a）的笛卡尔 k
 static double *gw_ref[3];      // 各带对的目标能量（重连后的物理能带）
 static double *gsorted[3];     // 排序块 9/10/11（仅用于诊断）
 static double *recon;          // GW 重连结果 [NCAND*nk]
+static double *cand_all;       // GW 排序候选块 10..14 [NCAND*nk]
 static double *mb_raw;         // 模型本征值（排序）[3*nk]
 static double *mb_trk;         // 模型本征值（重连后）[3*nk]
 static int     track_anchor;   // 重连锚点（K 点）
@@ -154,6 +165,7 @@ int main(void)
         for (int c = 0; c < NCAND; ++c)
             memcpy(cand + c * nk, gw.E + (CAND_FIRST - 1 + c) * nk, sizeof(double) * nk);
         recon = malloc(sizeof(double) * NCAND * nk);
+        cand_all = cand;
 
         int anchor = 0;
         for (int i = 1; i < nk; ++i)
@@ -211,10 +223,15 @@ int main(void)
 #if RECONNECT
     // 价带用排序块 9（本身很干净），两条导带用重连后的物理能带
     gw_ref[0] = gsorted[0];
-    gw_ref[1] = recon + 0 * nk;
-    gw_ref[2] = recon + 1 * nk;
+    gw_ref[1] = recon + CB_PICK_A * nk;
+    gw_ref[2] = recon + CB_PICK_B * nk;
+    printf("  导带配对：模型带2 <-> 物理带%d，模型带3 <-> 物理带%d\n", CB_PICK_A + 1, CB_PICK_B + 1);
 #else
-    for (int b = 0; b < NPAIR; ++b) gw_ref[b] = gsorted[b];
+    gw_ref[0] = gsorted[0];
+    gw_ref[1] = cand_all + CB_PICK_A * nk;
+    gw_ref[2] = cand_all + CB_PICK_B * nk;
+    printf("  导带配对（未重连，直接用排序块）：模型带2 <-> 块%d，模型带3 <-> 块%d\n",
+           CAND_FIRST + CB_PICK_A, CAND_FIRST + CB_PICK_B);
 #endif
 
     // 自检：把 .kpt 重建的 k 点累加成路径长度，应与参考文件的 k 轴一致
