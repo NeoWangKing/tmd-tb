@@ -13,9 +13,35 @@
 #ifndef SOC_SPIN
 #define SOC_SPIN 0
 #endif
+
+// 能带路径与横坐标单位（编译期开关）
+//   PATH_MODE = 0 : 路径 M → Γ → K → M' → K'，横坐标单位 2π/a
+//                   —— 阶段一与 VASP 的 MoS2-pbe*.txt 对比用
+//                      （gnuplot/plot_nn.gp、plot_tnn.gp、plot_soc.gp、plot_soc_spin.gp）
+//   PATH_MODE = 1 : 路径 Γ → K → M → Γ，横坐标单位 Å⁻¹
+//                   —— 阶段二与 wannier90 的 GW 能带逐点对比用（gnuplot/plot_gw.gp）
+//                      步数取 120/60/104，使 k 点与 wannier90_band.kpt 的 285 个点重合
+#ifndef PATH_MODE
+#define PATH_MODE 0
+#endif
 #include "params.h"
 
 #define PI 3.14159265358979323846
+
+// 单层 MoS2 的晶格常数 (Å)。由 wannier90_band.labelinfo.dat 的三段路径长度
+// 分别反推：ΓK -> 3.182165、MΓ -> 3.182162、总长 -> 3.182164，取 3.182164。
+// 用来把 k 从 1/a 单位换算成 Å⁻¹。
+#define A_ANG 3.182164
+
+#if PATH_MODE == 0
+  #define K_AXIS_UNIT    (2*PI)   // 横坐标：k 以 2π/a 为单位
+  #define K_AXIS_LABEL   "k-path (fractional)"
+  #define K_AXIS_LABEL_S "k-path (frac)"
+#else
+  #define K_AXIS_UNIT    (A_ANG)  // 横坐标：k 以 Å⁻¹ 为单位（与 wannier90 数据一致）
+  #define K_AXIS_LABEL   "k-path (Å^-1)"
+  #define K_AXIS_LABEL_S "k-path (Å^-1)"
+#endif
 
 static double b1x, b1y, b2x, b2y;
 
@@ -444,14 +470,23 @@ typedef struct {
 static const double GAMMA[2] = {0.0, 0.0};          // Gamma 点
 static const double M[2]     = {0.5, 0.5};          // M 点
 static const double K[2]     = {2.0/3.0, 1.0/3.0};  // K 点
+#if PATH_MODE == 0
 static const double Mp[2]    = {0.5, 0.0};          // M' 点
 static const double Kp[2]    = {1.0/3.0, -1.0/3.0}; // K' 点
+#endif
 
+// 路径由 PATH_MODE 决定（见文件开头）
 static Segment path[] = {
+#if PATH_MODE == 0
     {M, GAMMA, 40},
     {GAMMA, K, 40},
     {K, Mp, 40},
     {Mp, Kp, 40}
+#else
+    {GAMMA, K, 120},
+    {K, M, 60},
+    {M, GAMMA, 104}
+#endif
 };
 static const int num_segments = sizeof(path)/sizeof(Segment);
 
@@ -492,14 +527,20 @@ int main(void)
 #if SOC_SPIN
     printf("# k-path    Up1    Up2    Up3    Dn1    Dn2    Dn3\n");
 #else
-    printf("# k-path (frac)    E1    E2    E3    E4    E5    E6\n");
+    printf("# " K_AXIS_LABEL_S "    E1    E2    E3    E4    E5    E6\n");
 #endif
 #else
-    printf("# k-path (fractional)    E1 (eV)    E2 (eV)    E3 (eV)\n");
+    printf("# " K_AXIS_LABEL "    E1 (eV)    E2 (eV)    E3 (eV)\n");
 #endif
+#if PATH_MODE == 0
     printf("# path: M → Γ → K → M' → K'\n");
     printf("# Symmetry points: M=0, Γ=%.6f, K=%.6f, M'=%.6f, K'=%.6f\n",
             (seg_len[0])/(2*PI), (seg_len[0]+seg_len[1])/(2*PI), (seg_len[0]+seg_len[1]+seg_len[2])/(2*PI), (total_len)/(2*PI));
+#else
+    printf("# path: Γ → K → M → Γ   (k 点与 wannier90_band.kpt 的 285 个点重合)\n");
+    printf("# Symmetry points (Å^-1): Γ=0, K=%.6f, M=%.6f, Γ=%.6f\n",
+            (seg_len[0])/A_ANG, (seg_len[0]+seg_len[1])/A_ANG, (total_len)/A_ANG);
+#endif
 
     double cumulative = 0.0;
     double complex Hgamma[3][3];
@@ -514,7 +555,10 @@ int main(void)
     }
 
     double complex HK[3][3];
-    double kKx = 2.0/3.0, kKy = 1.0/3.0;
+    double kKx, kKy;
+    // build_Hk 要的是笛卡尔 k：这里必须先把分数坐标 (2/3,1/3) 换算过去。
+    // （原来直接把分数坐标当笛卡尔 k 传进去，打印出来的 H(K) 是错的）
+    frac_to_cart_k(2.0/3.0, 1.0/3.0, &kKx, &kKy);
     build_Hk(kKx, kKy, NN_mats, NNN_mats, TNN_mats, HK);
     printf("\n");
     printf("# H at K (2/3,1/3):\n");
@@ -633,7 +677,7 @@ int main(void)
             diagonalize_soc_spin_blocks(H, eig_up, eig_dn);
 
             double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / (2*PI);
+            double xcoord = (cumulative + d) / K_AXIS_UNIT;
             // 输出 7 列：x, up1, up2, up3, dn1, dn2, dn3
             printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
                     xcoord,
@@ -644,7 +688,7 @@ int main(void)
             diagonalize_6x6_with_soc(H, eig);
 
             double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / (2*PI);
+            double xcoord = (cumulative + d) / K_AXIS_UNIT;
             printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
                     xcoord, eig[0], eig[1], eig[2], eig[3], eig[4], eig[5]);
     #endif
@@ -653,7 +697,7 @@ int main(void)
             diagonalize_3x3_hermitian(H, eig);
 
             double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / (2*PI);
+            double xcoord = (cumulative + d) / K_AXIS_UNIT;
             printf("%12.6f %12.6f %12.6f %12.6f\n",
                     xcoord, eig[0], eig[1], eig[2]);
 #endif
