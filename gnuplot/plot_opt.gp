@@ -49,6 +49,6 @@ plot "data/gw_fit_bands.dat" using 1:($2-gw_vbm)   w l lc "orange" lw 3   title 
      "data/gw_fit_bands.dat" using 1:($8-fit_vbm)  w l lc "blue"   lw 2.5 dt 2 title "拟合 TB", \
      "data/gw_fit_bands.dat" using 1:($9-fit_vbm)  w l lc "blue"   lw 2.5 dt 2 notitle, \
      "data/gw_fit_bands.dat" using 1:($10-fit_vbm) w l lc "blue"   lw 2.5 dt 2 notitle, \
-     "data/gw_fit_bands.dat" using 1:($5-init_vbm) w l lc "gray60" lw 1.2 dt 3 title "初值 TB", \
-     "data/gw_fit_bands.dat" using 1:($6-init_vbm) w l lc "gray60" lw 1.2 dt 3 notitle, \
-     "data/gw_fit_bands.dat" using 1:($7-init_vbm) w l lc "gray60" lw 1.2 dt 3 notitle
+     "data/gw_fit_bands.dat" using 1:($5-init_vbm) w l lc rgb "#404040" lw 2.4 dt 3 title "初值 TB", \
+     "data/gw_fit_bands.dat" using 1:($6-init_vbm) w l lc rgb "#404040" lw 2.4 dt 3 notitle, \
+     "data/gw_fit_bands.dat" using 1:($7-init_vbm) w l lc rgb "#404040" lw 2.4 dt 3 notitle
