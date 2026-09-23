@@ -1,8 +1,21 @@
-# 设置终端
-# set terminal qt font "Arial,12" size 800,600 enhanced
-# 若需要保存为 PNG，取消下面两行的注释，并注释上面的 qt 行
-set terminal pngcairo font "Arial,12" size 800,600 enhanced
-set output "img/TB-NN.png"
+# ---------------------------------------------------------------------------
+# 输出模式：0 = 弹出 Qt 窗口；1 = 写成 PNG 文件
+# 可以用命令行覆盖默认值，不必改文件：gnuplot -e "MODE=0" plot_nn.gp
+# 注意：默认值必须是 1 —— build.sh 是裸调 gnuplot（不带 -e），改成 0 之后
+#       build.sh 就不会再产出 img/ 里的图了，而且本机 Qt 终端开不了窗口时
+#       它是静默失败，不会有任何报错。
+# ---------------------------------------------------------------------------
+if (!exists("MODE")) MODE = 1
+OUTFILE = "img/TB-NN.png"
+
+if (MODE == 1) {
+  set terminal pngcairo font "Arial,12" size 800,600 enhanced
+  set output OUTFILE
+  print "MODE = 1 -> 输出 ", OUTFILE
+} else {
+  set terminal qt persist font "Arial,12" size 800,600 enhanced
+  print "MODE = 0 -> 弹出 Qt 窗口（看不到窗口 = 本机 Qt 终端不可用，请用 -e \"MODE=1\"）"
+}
 
 map(x) = (x <= 0.577350) ? 0 + (x-0)*(0.180988-0)/(0.577350-0) : \
          (x <= 1.244017) ? 0.180988 + (x-0.577350)*(0.389974-0.180988)/(1.244017-0.577350) : \
