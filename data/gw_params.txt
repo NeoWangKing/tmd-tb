@@ -1,0 +1,21 @@
+# opt_main.c 拟合出的 GW 参数（可直接粘进 params.h）
+# NPAIR=3 RECONNECT=1 CB_PICK=(0,2) RMS=0.0334 eV
+        static const double e1   = -0.669051;
+        static const double e2   = +0.909859;
+        static const double t11  = -0.236031;
+        static const double t12  = +0.215955;
+        static const double t13  = -0.667015;
+        static const double t22  = +0.081873;
+        static const double t23  = +0.201256;
+        static const double t33  = +0.092394;
+        static const double r11  = +0.124235;
+        static const double r12  = +0.292944;
+        static const double r21  = -0.136325;
+        static const double r22  = -0.038118;
+        static const double r23  = +0.147411;
+        static const double u11  = -0.079896;
+        static const double u12  = -0.123351;
+        static const double u13  = +0.034764;
+        static const double u22  = +0.365806;
+        static const double u23  = -0.243409;
+        static const double u33  = -0.198801;

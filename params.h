@@ -15,7 +15,32 @@
 #endif
 
 #if NN_MODEL
-    #if NNN_MODEL
+    #if PARAM_SET == 2
+        // GW 拟合参数（opt_main.c 拟合，见 data/gw_params.txt）
+        // 注意：这套参数的能量零点跟着 GW 数据（DFT 费米能级），绝对值与文献那套不同
+        static const double e1  = -0.669051;
+        static const double e2  =  +0.909859;
+
+        static const double t11 = -0.236031;
+        static const double t12 =  +0.215955;
+        static const double t13 = -0.667015;
+        static const double t22 =  +0.081873;
+        static const double t23 =  +0.201256;
+        static const double t33 =  +0.092394;
+
+        static const double r11 =  +0.124235;
+        static const double r12 =  +0.292944;
+        static const double r21 = -0.136325;
+        static const double r22 = -0.038118;
+        static const double r23 =  +0.147411;
+
+        static const double u11 = -0.079896;
+        static const double u12 = -0.123351;
+        static const double u13 =  +0.034764;
+        static const double u22 =  +0.365806;
+        static const double u23 = -0.243409;
+        static const double u33 = -0.198801;
+    #elif NNN_MODEL
         static const double e1  =  0.683;
         static const double e2  =  1.707;
 
@@ -49,6 +74,11 @@
         static const double t23 =  0.338;
         static const double t33 =  0.057;
     #endif
+#endif
+
+// GW 参数组只在 NN+NNN+TNN 模型下有意义
+#if PARAM_SET == 2 && !NNN_MODEL
+    #error "PARAM_SET=2（GW 参数）需要同时打开 NNN_MODEL=1"
 #endif
 
 #if SOC_MODEL

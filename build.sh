@@ -37,6 +37,9 @@ build_run soc_spin -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=1
 build_run gw_nn    -DPATH_MODE=1
 build_run gw       -DNNN_MODEL=1 -DPATH_MODE=1
 
+# 任务①收尾：用落地到 params.h 的 GW 参数算能带（GW 路径），并与 GW 参考对比
+build_run gwfit    -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
+
 # 拟合诊断（Step A）：GW 参考能带 vs 当前 TB 的残差；读上面生成的 data/band_gw.dat
 "$CC" $CFLAGS -o bin/fit_main $LIBSRC fit_main.c -lm
 ./bin/fit_main > data/fit_report.txt

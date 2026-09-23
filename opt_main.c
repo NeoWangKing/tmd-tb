@@ -351,6 +351,19 @@ int main(void)
         printf("  对照：若直接用排序块当目标，RMS = %.4f eV\n", sqrt(es / ((double)NPAIR * nk)));
     }
 
+    // 写出参数，方便直接落到 params.h 的 PARAM_SET==2 分支
+    {
+        FILE *fp = fopen("data/gw_params.txt", "w");
+        if (fp) {
+            fprintf(fp, "# opt_main.c 拟合出的 GW 参数（可直接粘进 params.h）\n");
+            fprintf(fp, "# NPAIR=%d RECONNECT=%d CB_PICK=(%d,%d) RMS=%.4f eV\n",
+                    NPAIR, RECONNECT, CB_PICK_A, CB_PICK_B, sqrt(best / ((double)NPAIR * nk)));
+            for (int j = 0; j < NP; ++j)
+                fprintf(fp, "        static const double %-4s = %+0.6f;\n", nm[j], p[j]);
+            fclose(fp);
+        }
+    }
+
     printf("\n高对称点残差 E_GW − E_TB (eV)：初值 -> 拟合后\n");
     printf("%-4s", "点");
     for (int b = 0; b < NPAIR; ++b) printf("   TB%d↔GW%-2d", TB_PAIR[b], GW_PAIR[b]);
