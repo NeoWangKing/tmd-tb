@@ -1,7 +1,7 @@
 // 全路径最小二乘拟合（最朴素的版本：逐参数扫描 + 步长减半）
 //
 //   min_p  Σ_{n,k} [E_TB(p; n, k) − E_GW(n, k)]²
-//   n = 价带（TB 第 1 条 ↔ GW 第 9 条）、第一导带（TB 第 2 条 ↔ GW 第 10 条）
+//   n = 价带、第一导带、第二导带（TB 第 1/2/3 条 ↔ GW 第 9/10/11 条，见 NPAIR）
 //   k = GW 参考数据里的全部 285 个点
 //
 // 读 MoS2-GWBSE-data/wannier90_band.kpt（k 点）与 wannier90_band.dat（参考能量）
@@ -17,8 +17,11 @@
 
 #define NP 19            // e1,e2 + 6 个 t + 5 个 r + 6 个 u
 
-#define GW_VB 9          // GW 参考能带里价带的序号（1-based）
-#define GW_CB 10         // 第一导带
+// 参与拟合的带对：TB 第 TB_PAIR[i] 条 <-> GW 第 GW_PAIR[i] 条
+// 2 条 = 只拟合价带+第一导带；3 条 = 再加上第二条导带
+#define NPAIR 3
+static const int TB_PAIR[3] = {1, 2, 3};
+static const int GW_PAIR[3] = {9, 10, 11};
 
 // GW 路径上的高对称点位置 (Å^-1)，用于报告分区残差
 static const double SYM_K[3]  = {0.0, 1.31633, 1.97450};
@@ -26,7 +29,7 @@ static const char  *SYM_NM[3] = {"Γ", "K", "M"};
 
 static int nk;
 static double *kx, *ky;        // TB 单位（1/a）的笛卡尔 k
-static double *gw_vb, *gw_cb;  // 参考能量
+static double *gw_ref[3];      // 各带对的参考能量
 
 static void unpack(const double *p, TB_Params *q)
 {
@@ -64,15 +67,16 @@ static double loss(const double *p, TB_Hop *hop)
         double e[3];
         tb_build_Hk(hop, kx[i], ky[i], H);
         herm3_eigvals(H, e);
-        double dv = e[0] - gw_vb[i];
-        double dc = e[1] - gw_cb[i];
-        s += dv*dv + dc*dc;
+        for (int b = 0; b < NPAIR; ++b) {
+            double d = e[TB_PAIR[b] - 1] - gw_ref[b][i];
+            s += d * d;
+        }
     }
     return s;
 }
 
 // 把当前参数下的能带算出来（用于输出/画图）
-static void eval_bands(const double *p, TB_Hop *hop, double *vb, double *cb)
+static void eval_bands(const double *p, TB_Hop *hop, double *tb)
 {
     TB_Params q;
     unpack(p, &q);
@@ -84,8 +88,7 @@ static void eval_bands(const double *p, TB_Hop *hop, double *vb, double *cb)
         double e[3];
         tb_build_Hk(hop, kx[i], ky[i], H);
         herm3_eigvals(H, e);
-        vb[i] = e[0];
-        cb[i] = e[1];
+        for (int b = 0; b < NPAIR; ++b) tb[b * nk + i] = e[TB_PAIR[b] - 1];
     }
 }
 
@@ -100,15 +103,14 @@ int main(void)
 {
     GwData gw;
     if (gw_read("MoS2-GWBSE-data/wannier90_band.dat", &gw)) return 1;
-    if (gw.nband < GW_CB) { fprintf(stderr, "[ERROR] GW 数据带数不够\n"); return 1; }
+    if (gw.nband < GW_PAIR[NPAIR-1]) { fprintf(stderr, "[ERROR] GW 数据带数不够\n"); return 1; }
 
     if (kpt_read("MoS2-GWBSE-data/wannier90_band.kpt", &nk, &kx, &ky)) return 1;
     if (nk != gw.nk) {
         fprintf(stderr, "[ERROR] k 点数不一致：kpt %d，band %d\n", nk, gw.nk);
         return 1;
     }
-    gw_vb = gw.E + (GW_VB - 1) * nk;
-    gw_cb = gw.E + (GW_CB - 1) * nk;
+    for (int b = 0; b < NPAIR; ++b) gw_ref[b] = gw.E + (GW_PAIR[b] - 1) * nk;
 
     // 自检：把 .kpt 重建的 k 点累加成路径长度，应与参考文件的 k 轴一致
     double cum = 0, dk = 0;
@@ -117,7 +119,7 @@ int main(void)
         double d = fabs(cum / A_ANG - gw.k[i]);
         if (d > dk) dk = d;
     }
-    printf("拟合：GW 参考 vs 三能带模型（全路径，%d 个 k 点，2 条带）\n", nk);
+    printf("拟合：GW 参考 vs 三能带模型（全路径，%d 个 k 点，%d 条带）\n", nk, NPAIR);
     printf("  k 点自检：由 .kpt 重建的路径长度与参考文件最大差 %.2e Å^-1\n", dk);
     if (dk > 1e-4) { fprintf(stderr, "[ERROR] k 点重建与参考不一致，检查坐标约定\n"); return 1; }
 
@@ -128,26 +130,29 @@ int main(void)
     pack(tb_get_params(), p);
     pack(tb_get_params(), p0);
 
-    double *vb0 = malloc(sizeof *vb0 * nk), *cb0 = malloc(sizeof *cb0 * nk);
-    double *vb  = malloc(sizeof *vb  * nk), *cb  = malloc(sizeof *cb  * nk);
-    eval_bands(p0, &hop, vb0, cb0);
+    double *tb0 = malloc(sizeof *tb0 * nk * NPAIR);
+    double *tb  = malloc(sizeof *tb  * nk * NPAIR);
+    eval_bands(p0, &hop, tb0);
 
     // 初值先做最优刚性平移（就是 Step A 里那个 Δ）：给 e1/e2 同时加常数等价于整条
     // 能带上移，所以这个偏移有解析解，不必让优化器慢慢爬。
     double shift = 0;
-    for (int i = 0; i < nk; ++i)
-        shift += (gw_vb[i] - vb0[i]) + (gw_cb[i] - cb0[i]);
-    shift /= 2.0 * nk;
+    for (int b = 0; b < NPAIR; ++b)
+        for (int i = 0; i < nk; ++i)
+            shift += gw_ref[b][i] - tb0[b * nk + i];
+    shift /= (double)NPAIR * nk;
     p0[0] += shift;
     p0[1] += shift;
     pack((const TB_Params *)tb_get_params(), p);   // 占位，下面重算
-    eval_bands(p0, &hop, vb0, cb0);
+    eval_bands(p0, &hop, tb0);
     for (int j = 0; j < NP; ++j) p[j] = p0[j];
     printf("\n初值先整体平移 %.3f eV（e1/e2 同加）\n", shift);
 
     double best = loss(p, &hop);
-    printf("\n初值：loss = %.5f eV², RMS = %.4f eV（价带 %.4f / 导带 %.4f）\n",
-           best, sqrt(best / (2.0*nk)), rms(vb0, gw_vb), rms(cb0, gw_cb));
+    printf("\n初值：loss = %.5f eV², RMS = %.4f eV\n",
+           best, sqrt(best / ((double)NPAIR * nk)));
+    for (int b = 0; b < NPAIR; ++b)
+        printf("        带%d(TB%d↔GW%d) RMS = %.4f eV\n", b+1, TB_PAIR[b], GW_PAIR[b], rms(tb0 + b*nk, gw_ref[b]));
 
     // ---- 逐参数扫描 + 步长减半 ----
     double step[NP];
@@ -178,13 +183,15 @@ int main(void)
         }
         if (it == 1 || it % 20 == 0)
             printf("  第 %3d 轮: loss = %10.5f eV², RMS = %.4f eV, 最大步长 = %.1e\n",
-                   it, best, sqrt(best / (2.0*nk)), maxstep);
+                   it, best, sqrt(best / ((double)NPAIR * nk)), maxstep);
     }
 
     // ---- 结果 ----
-    eval_bands(p, &hop, vb, cb);
-    printf("\n拟合后：loss = %.5f eV², RMS = %.4f eV（价带 %.4f / 导带 %.4f）\n",
-           best, sqrt(best / (2.0*nk)), rms(vb, gw_vb), rms(cb, gw_cb));
+    eval_bands(p, &hop, tb);
+    printf("\n拟合后：loss = %.5f eV², RMS = %.4f eV\n",
+           best, sqrt(best / ((double)NPAIR * nk)));
+    for (int b = 0; b < NPAIR; ++b)
+        printf("        带%d(TB%d↔GW%d) RMS = %.4f eV\n", b+1, TB_PAIR[b], GW_PAIR[b], rms(tb + b*nk, gw_ref[b]));
 
     printf("\n参数（初值 -> 拟合值，单位 eV）：\n");
     const char *nm[NP] = {"e1","e2","t11","t12","t13","t22","t23","t33",
@@ -192,24 +199,32 @@ int main(void)
     for (int j = 0; j < NP; ++j)
         printf("  %-4s %+8.4f -> %+8.4f\n", nm[j], p0[j], p[j]);
 
-    printf("\n高对称点残差 (eV)：E_GW − E_TB\n");
-    printf("%-4s %9s %9s   | %9s %9s\n", "点", "价带(初)", "导带(初)", "价带(拟合)", "导带(拟合)");
+    printf("\n高对称点残差 E_GW − E_TB (eV)：初值 -> 拟合后\n");
+    printf("%-4s", "点");
+    for (int b = 0; b < NPAIR; ++b) printf("   TB%d↔GW%-2d", TB_PAIR[b], GW_PAIR[b]);
+    printf("\n");
     for (int s = 0; s < 3; ++s) {
         int i = 0;
         for (int j = 0; j < nk; ++j) if (fabs(gw.k[j] - SYM_K[s]) < fabs(gw.k[i] - SYM_K[s])) i = j;
-        printf("%-4s %9.3f %9.3f   | %9.3f %9.3f\n", SYM_NM[s],
-               gw_vb[i] - vb0[i], gw_cb[i] - cb0[i], gw_vb[i] - vb[i], gw_cb[i] - cb[i]);
+        printf("%-4s", SYM_NM[s]);
+        for (int b = 0; b < NPAIR; ++b)
+            printf("  %+.3f->%+.3f", gw_ref[b][i] - tb0[b*nk+i], gw_ref[b][i] - tb[b*nk+i]);
+        printf("\n");
     }
 
     FILE *out = fopen("data/gw_fit_bands.dat", "w");
     if (!out) { fprintf(stderr, "[ERROR] cannot write data/gw_fit_bands.dat\n"); return 1; }
     fprintf(out, "# col1: k (Å^-1)\n");
-    fprintf(out, "# col2-3: GW 参考价带/导带\n");
-    fprintf(out, "# col4-5: TB 初值（params.h 的文献参数）价带/导带\n");
-    fprintf(out, "# col6-7: TB 拟合后 价带/导带\n");
-    for (int i = 0; i < nk; ++i)
-        fprintf(out, "%10.6f %10.5f %10.5f %10.5f %10.5f %10.5f %10.5f\n",
-                gw.k[i], gw_vb[i], gw_cb[i], vb0[i], cb0[i], vb[i], cb[i]);
+    fprintf(out, "# col2-%d : GW 参考（带 %d/%d/%d）\n", 1+NPAIR, GW_PAIR[0], GW_PAIR[1 % NPAIR], GW_PAIR[2 % NPAIR]);
+    fprintf(out, "# col%d-%d : TB 初值（params.h 文献参数）\n", 2+NPAIR, 1+2*NPAIR);
+    fprintf(out, "# col%d-%d : TB 拟合后\n", 2+2*NPAIR, 1+3*NPAIR);
+    for (int i = 0; i < nk; ++i) {
+        fprintf(out, "%10.6f", gw.k[i]);
+        for (int b = 0; b < NPAIR; ++b) fprintf(out, " %10.5f", gw_ref[b][i]);
+        for (int b = 0; b < NPAIR; ++b) fprintf(out, " %10.5f", tb0[b*nk+i]);
+        for (int b = 0; b < NPAIR; ++b) fprintf(out, " %10.5f", tb[b*nk+i]);
+        fprintf(out, "\n");
+    }
     fclose(out);
     printf("\n已写出 data/gw_fit_bands.dat\n");
     return 0;
