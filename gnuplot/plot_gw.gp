@@ -17,12 +17,14 @@ if (MODE == 1) {
 
 # ---------------------------------------------------------------------------
 # GW (wannier90) vs TB：同一路径 Γ-K-M-Γ、同一横坐标单位 Å⁻¹、两侧各自 VBM 归零
+# 两侧的 3 条对比能带都是"拼接后的物理能带"（交叉处不互换身份，见 src/bandtrack.h）
 #
 #   数据来源：
-#     MoS2-GWBSE-data/wannier90_band.dat
-#     data/band_gw.dat
-#     data/band_gw_nn.dat
-#   后两个由 ./build.sh 的 gw / gw_nn 目标生成。
+#     MoS2-GWBSE-data/wannier90_band.dat   GW 原始文件（只作背景）
+#     data/gw_reconnect.dat                GW 拼接后的物理能带（由 bin/opt_main 生成）
+#     data/band_gw.dat                     TB（NN+NNN+TNN，文献参数）
+#     data/band_gw_nn.dat                  TB（只有 NN）
+#   后两个由 ./build.sh 的 gw / gw_nn 目标生成，PATH_MODE=1 时输出顺序就是物理能带。
 # ---------------------------------------------------------------------------
 NV_GW = 9
 NK    = 285
@@ -54,7 +56,16 @@ set key top right
 set label 1 sprintf("zero: GW VBM=%.4f / TB VBM=%.4f / TB-NN VBM=%.4f eV", gw_vbm, tb_vbm, tb_vbm_nn) \
       at graph 0.012, 0.955 font "Arial,9"
 
-plot "MoS2-GWBSE-data/wannier90_band.dat" using 1:($2 - gw_vbm) w l lc "orange" lw 3 title "GW (wannier90)", \
+# GW 侧的 3 条对比能带用拼接后的物理带：价带是原始第 9 条（跟上下都分得开，不用拼），
+# 两条导带取 data/gw_reconnect.dat 的物理带 1 与物理带 3（与拟合用的配对一致）。
+# 原始文件只画成淡色细线作背景 —— 它把交叉的两条带按能量排在一起，身份是错的，
+# 而 TB 那边（data/band_gw*.dat）也是物理能带顺序，两边口径必须一致。
+set dashtype 2 (3,3)
+plot "MoS2-GWBSE-data/wannier90_band.dat" using 1:($2 - gw_vbm) w l lc rgb "#f2b070" lw 1 title "GW 其它能带", \
+     "MoS2-GWBSE-data/wannier90_band.dat" every ::0:(NV_GW-1):(NK-1):(NV_GW-1) \
+          using 1:($2 - gw_vbm) w l lc "orange" lw 3 title "GW 参考（拼接后）", \
+     "data/gw_reconnect.dat" using 1:($7 - gw_vbm) w l lc "orange" lw 3 notitle, \
+     "data/gw_reconnect.dat" using 1:($9 - gw_vbm) w l lc "orange" lw 3 notitle, \
      "data/band_gw_nn.dat" using 1:($2 - tb_vbm_nn) w l lc "green" lw 2 dt 3 title "TB-NN", \
      "data/band_gw_nn.dat" using 1:($3 - tb_vbm_nn) w l lc "green" lw 2 dt 3 notitle, \
      "data/band_gw_nn.dat" using 1:($4 - tb_vbm_nn) w l lc "green" lw 2 dt 3 notitle, \

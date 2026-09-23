@@ -2,6 +2,8 @@
 #   GW 参考（3 条拟合目标）: data/gw_fit_bands.dat 第 2~4 列
 #   TB（文献参数）        : data/band_gw.dat
 #   TB（GW 参数，PARAM_SET=2）: data/band_gwfit.dat
+# 三条对比曲线都是拼接后的物理能带：两个 TB 文件由 main.c 在 PATH_MODE=1 下按物理
+# 能带顺序输出（交叉处不互换身份），GW 参考也是拼接过的，两边口径一致。
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-params-landed.png"
 # pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）

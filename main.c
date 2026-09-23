@@ -1,10 +1,19 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <complex.h>
 #include "config.h"
 #include "tb.h"
 #include "herm3.h"
 #include "kpath.h"
+#include "bandtrack.h"
+
+// 输出表的列数（能带条数）
+#if SOC_MODEL
+#define TB_NBAND 6
+#else
+#define TB_NBAND 3
+#endif
 
 // 输入升序排列的能带 eig，以及能带总数 nband
 // 返回价带顶能量 (VBM)
@@ -172,6 +181,16 @@ int main(void)
                vbm1 - vbm2, 2.0 * lambda);
     }
 #endif
+    // 能带表先整条路径算完存下来，最后一起输出。阶段二要先把排序本征值拼回物理能带，
+    // 而拼接（斜率外推，见 bandtrack.h）要看前后若干个 k 点，没法边算边打。
+    int np = 0;
+    for (size_t s = 0; s < num_segments; s++) np += path[s].steps + 1;
+
+    double *tab_x = malloc(sizeof *tab_x * np);
+    double *tab_e = malloc(sizeof *tab_e * np * TB_NBAND);
+    if (!tab_x || !tab_e) { fprintf(stderr, "[ERROR] out of memory\n"); return 1; }
+
+    int ip = 0;
     for (size_t s = 0; s < num_segments; s++) {
         double start_x = path[s].start[0], start_y = path[s].start[1];
         double end_x   = path[s].end[0],   end_y   = path[s].end[1];
@@ -186,41 +205,72 @@ int main(void)
             double complex H[3][3];
             tb_build_Hk(&hop, kx, ky, H);
 
+            tab_x[ip] = (cumulative + t * seg_len[s]) / K_AXIS_UNIT;
+
 #if SOC_MODEL
     #if SOC_SPIN
             double eig_up[3], eig_dn[3];
             tb_eig_soc_spin(H, eig_up, eig_dn);
-
-            double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / K_AXIS_UNIT;
-            // 输出 7 列：x, up1, up2, up3, dn1, dn2, dn3
-            printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
-                    xcoord,
-                    eig_up[0], eig_up[1], eig_up[2],
-                    eig_dn[0], eig_dn[1], eig_dn[2]);
+            // 6 列：up1 up2 up3 dn1 dn2 dn3
+            for (int b = 0; b < 3; b++) {
+                tab_e[b*np + ip]     = eig_up[b];
+                tab_e[(3+b)*np + ip] = eig_dn[b];
+            }
     #else
             double eig[6];
             tb_eig_soc(H, eig);
-
-            double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / K_AXIS_UNIT;
-            printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
-                    xcoord, eig[0], eig[1], eig[2], eig[3], eig[4], eig[5]);
+            for (int b = 0; b < 6; b++) tab_e[b*np + ip] = eig[b];
     #endif
 #else
             double eig[3];
             herm3_eigvals(H, eig);
-
-            double d = t * seg_len[s];
-            double xcoord = (cumulative + d) / K_AXIS_UNIT;
-            printf("%12.6f %12.6f %12.6f %12.6f\n",
-                    xcoord, eig[0], eig[1], eig[2]);
+            for (int b = 0; b < 3; b++) tab_e[b*np + ip] = eig[b];
 #endif
 
+            ip++;
         }
         cumulative += seg_len[s];
 
     }
 
+#if TRACK_BANDS && !SOC_MODEL
+    // 模型自己的两条导带在 M-Γ 之间会交叉，而 herm3_eigvals 给的是按能量排序的本征值，
+    // 交叉处两条曲线会互换身份。这里拼回物理能带：输出的第 1/2/3 列就是第 1/2/3 条
+    // 物理能带，跟 GW 参考（同样拼接过）一一对应。
+    // SOC 打开时输出 6 列是两组本征值（或 up/dn 分列），不能放在一起排，阶段二也用不到。
+    {
+        int anchor = path[0].steps;     // K 点（Γ→K 段的末点），三条带在那里分得最开
+        double *trk = malloc(sizeof *trk * np * TB_NBAND);
+        if (!trk || band_track(np, TB_NBAND, tab_e, anchor, trk)) {
+            fprintf(stderr, "[ERROR] 能带拼接失败\n");
+            return 1;
+        }
+        for (int b = 0; b < TB_NBAND; b++)
+            for (int i = 0; i < np; i++) tab_e[b*np + i] = trk[b*np + i];
+        free(trk);
+    }
+#endif
+
+    for (int i = 0; i < np; i++) {
+#if SOC_MODEL
+    #if SOC_SPIN
+        printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
+                tab_x[i],
+                tab_e[0*np+i], tab_e[1*np+i], tab_e[2*np+i],
+                tab_e[3*np+i], tab_e[4*np+i], tab_e[5*np+i]);
+    #else
+        printf("%12.6f %12.6f %12.6f %12.6f %12.6f %12.6f %12.6f\n",
+                tab_x[i],
+                tab_e[0*np+i], tab_e[1*np+i], tab_e[2*np+i],
+                tab_e[3*np+i], tab_e[4*np+i], tab_e[5*np+i]);
+    #endif
+#else
+        printf("%12.6f %12.6f %12.6f %12.6f\n",
+                tab_x[i], tab_e[0*np+i], tab_e[1*np+i], tab_e[2*np+i]);
+#endif
+    }
+
+    free(tab_x);
+    free(tab_e);
     return 0;
 }

@@ -1,5 +1,9 @@
 // 拟合诊断：GW 参考能带 vs 当前 TB 的残差分解（刚性成分 / 形状成分）
 // 读 data/band_gw.dat 与 MoS2-GWBSE-data/wannier90_band.dat，写 data/fit_residual.dat
+//
+// 两边都得是拼接后的物理能带（见 src/bandtrack.h），不然交叉处两边身份对不上：
+//   data/band_gw.dat 由 main.c 在 PATH_MODE=1 下输出，列顺序已经是物理能带；
+//   GW 参考在下面先用 band_track 把候选块拼一遍再比。
 
 #include <stdio.h>
 #include <stdlib.h>
