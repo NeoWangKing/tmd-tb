@@ -1,0 +1,9 @@
+julia-code/
+tb
+main
+compile_commands.json
+bin/
+
+# 参考文献 PDF：2.6 MB 且涉及版权，不建议推到公开仓库；
+# 需要记录文献时建议在 README 里写 DOI 链接。
+PhysRevB.97.205409.pdf
