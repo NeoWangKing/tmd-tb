@@ -49,7 +49,10 @@ static int nk;
 static double *kx, *ky;        // TB 单位（1/a）的笛卡尔 k
 static double *gw_ref[3];      // 各带对的目标能量（重连后的物理能带）
 static double *gsorted[3];     // 排序块 9/10/11（仅用于诊断）
-static double *recon;          // 重连结果 [NCAND*nk]
+static double *recon;          // GW 重连结果 [NCAND*nk]
+static double *mb_raw;         // 模型本征值（排序）[3*nk]
+static double *mb_trk;         // 模型本征值（重连后）[3*nk]
+static int     track_anchor;   // 重连锚点（K 点）
 
 static void unpack(const double *p, TB_Params *q)
 {
@@ -74,6 +77,30 @@ static void pack(const TB_Params *q, double *p)
 }
 
 // 目标函数：两条带、全部 k 点的均匀加权最小二乘
+// 算模型在全部 k 点的三条带。RECONNECT=1 时先重连：拟合参数下模型自己的两条
+// 导带在 M-Γ 之间也会靠近/交叉，而 herm3_eigvals 返回的是排序本征值。
+static void model_bands(const double *p, TB_Hop *hop)
+{
+    TB_Params q;
+    unpack(p, &q);
+    tb_set_params(&q);
+    tb_update_hopping(hop);
+
+    for (int i = 0; i < nk; ++i) {
+        double complex H[3][3];
+        double e[3];
+        tb_build_Hk(hop, kx[i], ky[i], H);
+        herm3_eigvals(H, e);
+        for (int b = 0; b < 3; ++b) mb_raw[b*nk + i] = e[b];
+    }
+#if RECONNECT
+    band_track(nk, 3, mb_raw, track_anchor, mb_trk);
+#else
+    for (int b = 0; b < 3; ++b)
+        for (int i = 0; i < nk; ++i) mb_trk[b*nk + i] = mb_raw[b*nk + i];
+#endif
+}
+
 static double loss(const double *p, TB_Hop *hop)
 {
     TB_Params q;
@@ -81,35 +108,22 @@ static double loss(const double *p, TB_Hop *hop)
     tb_set_params(&q);
     tb_update_hopping(hop);
 
+    model_bands(p, hop);
     double s = 0;
-    for (int i = 0; i < nk; ++i) {
-        double complex H[3][3];
-        double e[3];
-        tb_build_Hk(hop, kx[i], ky[i], H);
-        herm3_eigvals(H, e);
+    for (int i = 0; i < nk; ++i)
         for (int b = 0; b < NPAIR; ++b) {
-            double d = e[TB_PAIR[b] - 1] - gw_ref[b][i];
+            double d = mb_trk[(TB_PAIR[b] - 1) * nk + i] - gw_ref[b][i];
             s += d * d;
         }
-    }
     return s;
 }
 
 // 把当前参数下的能带算出来（用于输出/画图）
-static void eval_bands(const double *p, TB_Hop *hop, double *tb)
+static void eval_bands(const double *p, TB_Hop *hop, double *out)
 {
-    TB_Params q;
-    unpack(p, &q);
-    tb_set_params(&q);
-    tb_update_hopping(hop);
-
-    for (int i = 0; i < nk; ++i) {
-        double complex H[3][3];
-        double e[3];
-        tb_build_Hk(hop, kx[i], ky[i], H);
-        herm3_eigvals(H, e);
-        for (int b = 0; b < NPAIR; ++b) tb[b * nk + i] = e[TB_PAIR[b] - 1];
-    }
+    model_bands(p, hop);
+    for (int b = 0; b < NPAIR; ++b)
+        for (int i = 0; i < nk; ++i) out[b*nk + i] = mb_trk[(TB_PAIR[b] - 1) * nk + i];
 }
 
 static double rms(const double *a, const double *b)
@@ -142,7 +156,10 @@ int main(void)
         int anchor = 0;
         for (int i = 1; i < nk; ++i)
             if (fabs(gw.k[i] - 1.31633) < fabs(gw.k[anchor] - 1.31633)) anchor = i;
-        if (gw_reconnect(nk, NCAND, cand, anchor, recon)) {
+        track_anchor = anchor;
+        mb_raw = malloc(sizeof(double) * 3 * nk);
+        mb_trk = malloc(sizeof(double) * 3 * nk);
+        if (band_track(nk, NCAND, cand, anchor, recon)) {
             fprintf(stderr, "[ERROR] 参考能带重连失败\n");
             return 1;
         }
@@ -167,7 +184,7 @@ int main(void)
         printf("\n");
 
         // 写出重连结果，供 plot_reconnect.gp 直观检查
-        FILE *fo = fopen("data/gw_reconnect.dat", "w");
+        FILE *fo = fopen("data/band_track.dat", "w");
         if (fo) {
             fprintf(fo, "# col1: k (Å^-1)\n");
             fprintf(fo, "# col2-%d : 排序块 %d..%d（原始数据）\n", 1 + NCAND, CAND_FIRST, CAND_LAST);

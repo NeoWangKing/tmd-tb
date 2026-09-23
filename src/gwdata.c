@@ -172,7 +172,7 @@ static void best_perm(const double *cnow, const double *pred, int ncand, int *pe
     }
 }
 
-int gw_reconnect(int nk, int ncand, const double *cand, int anchor, double *out)
+int band_track(int nk, int ncand, const double *cand, int anchor, double *out)
 {
     if (ncand < 2 || ncand > 8 || anchor <= 0 || anchor >= nk - 1) return 1;
 
