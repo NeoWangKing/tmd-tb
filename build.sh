@@ -9,7 +9,8 @@ if [ -z "$CC" ]; then
     if command -v clang >/dev/null 2>&1; then CC=clang; else CC=cc; fi
 fi
 CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Isrc"
-SRC="main.c src/mat.c src/tb.c src/herm3.c src/kpath.c"
+LIBSRC="src/mat.c src/tb.c src/herm3.c src/kpath.c"
+SRC="main.c $LIBSRC"
 
 mkdir -p bin data img
 
@@ -35,3 +36,8 @@ build_run soc_spin -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=1
 # gw_nn 只出数据，被 plot_gw.gp 读取
 build_run gw_nn    -DPATH_MODE=1
 build_run gw       -DNNN_MODEL=1 -DPATH_MODE=1
+
+# 拟合诊断（Step A）：GW 参考能带 vs 当前 TB 的残差；读上面生成的 data/band_gw.dat
+"$CC" $CFLAGS -o bin/fit_main $LIBSRC fit_main.c -lm
+./bin/fit_main > data/fit_report.txt
+gnuplot gnuplot/plot_fit.gp
