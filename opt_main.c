@@ -165,6 +165,28 @@ int main(void)
                    c + 1, CAND_FIRST + c, diff, nk, 100.0 * diff / nk);
         }
         printf("\n");
+
+        // 写出重连结果，供 plot_reconnect.gp 直观检查
+        FILE *fo = fopen("data/gw_reconnect.dat", "w");
+        if (fo) {
+            fprintf(fo, "# col1: k (Å^-1)\n");
+            fprintf(fo, "# col2-%d : 排序块 %d..%d（原始数据）\n", 1 + NCAND, CAND_FIRST, CAND_LAST);
+            fprintf(fo, "# col%d-%d : 重连后的物理带（编号按 K 点能量顺序）\n", 2 + NCAND, 1 + 2*NCAND);
+            for (int i = 0; i < nk; ++i) {
+                fprintf(fo, "%10.6f", gw.k[i]);
+                for (int c = 0; c < NCAND; ++c) fprintf(fo, " %10.5f", cand[c*nk + i]);
+                for (int b = 0; b < NCAND; ++b) fprintf(fo, " %10.5f", recon[b*nk + i]);
+                // 再附上：该曲线在这个 k 用的是哪个排序块（用于画"身份图"）
+                for (int b = 0; b < NCAND; ++b) {
+                    int src = 0;
+                    for (int c = 1; c < NCAND; ++c)
+                        if (fabs(cand[c*nk+i] - recon[b*nk+i]) < fabs(cand[src*nk+i] - recon[b*nk+i])) src = c;
+                    fprintf(fo, " %4d", CAND_FIRST + src);
+                }
+                fprintf(fo, "\n");
+            }
+            fclose(fo);
+        }
     }
 
 #if RECONNECT

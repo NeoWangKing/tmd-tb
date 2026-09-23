@@ -46,3 +46,4 @@ gnuplot gnuplot/plot_fit.gp
 "$CC" $CFLAGS -o bin/opt_main $LIBSRC opt_main.c -DNNN_MODEL=1 -lm
 ./bin/opt_main > data/opt_report.txt
 gnuplot gnuplot/plot_opt.gp
+gnuplot gnuplot/plot_reconnect.gp
