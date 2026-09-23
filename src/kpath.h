@@ -5,7 +5,6 @@
 #include "config.h"
 #include "tb.h"
 
-// 一段直线路径（分数坐标）与采样步数
 typedef struct {
     const double *start;
     const double *end;
@@ -28,10 +27,7 @@ extern const double KPATH_GAMMA[2];
 extern const double KPATH_M[2];
 extern const double KPATH_K[2];
 
-// 当前 PATH_MODE 对应的路径段列表
 const Segment *kpath_segments(size_t *n);
-
-// 一段路径的 |Δk|（单位 1/a）
-double kpath_seg_len(const Segment *seg);
+double kpath_seg_len(const Segment *seg);    // |Δk|，单位 1/a
 
 #endif

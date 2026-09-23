@@ -1,9 +1,5 @@
-// 拟合诊断（Step A）：把 GW 参考能带与当前 TB 能带逐点比较，
-// 把残差分解成"刚性成分"（整体平移 / 带隙张开）与"形状成分"（色散、曲率）。
-//
-// 读：data/band_gw.dat                   —— TB 在 GW 的 285 个 k 点上的能带
-//     MoS2-GWBSE-data/wannier90_band.dat —— GW 参考能带（17 条带，按块存放）
-// 写：data/fit_residual.dat              —— 残差曲线，供 gnuplot/plot_fit.gp 使用
+// 拟合诊断：GW 参考能带 vs 当前 TB 的残差分解（刚性成分 / 形状成分）
+// 读 data/band_gw.dat 与 MoS2-GWBSE-data/wannier90_band.dat，写 data/fit_residual.dat
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +22,8 @@ static const double SYM_K[4]  = {0.0, 1.31633, 1.97450, 3.11448};
 static const char  *SYM_NM[4] = {"Γ", "K", "M", "Γ(末)"};
 
 typedef struct {
-    int nband, nk;
+    int nband;
+    int nk;
     double *k;      // [nk]
     double *E;      // [nband*nk]，按带分块
 } GwData;
@@ -40,7 +37,7 @@ static int line_is_blank(const char *s)
 static int gw_read(const char *path, GwData *g)
 {
     FILE *f = fopen(path, "r");
-    if (!f) { fprintf(stderr, "打不开 %s\n", path); return -1; }
+    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
 
     // 第一遍：数每条带的点数，并检查各带点数一致
     char line[512];
@@ -48,7 +45,7 @@ static int gw_read(const char *path, GwData *g)
     while (fgets(line, sizeof line, f)) {
         if (line_is_blank(line)) {
             if (cnt > 0) {
-                if (nk < 0) nk = cnt; else if (cnt != nk) return -2;
+                if (nk < 0) nk = cnt; else if (cnt != nk) return 1;
                 nband++; cnt = 0;
             }
             continue;
@@ -56,18 +53,21 @@ static int gw_read(const char *path, GwData *g)
         if (line[0] == '#') continue;
         cnt++;
     }
-    if (cnt > 0) { if (nk < 0) nk = cnt; else if (cnt != nk) return -2; nband++; }
+    if (cnt > 0) { if (nk < 0) nk = cnt; else if (cnt != nk) return 1; nband++; }
     fclose(f);
-    if (nband <= 0 || nk <= 0 || nband > GW_NBAND_MAX || nk > NK_MAX) return -3;
+    if (nband <= 0 || nk <= 0 || nband > GW_NBAND_MAX || nk > NK_MAX) {
+        fprintf(stderr, "[ERROR] %s: nband=%d nk=%d 不合理\n", path, nband, nk);
+        return 1;
+    }
 
     g->nband = nband; g->nk = nk;
     g->k = malloc(sizeof *g->k * nk);
     g->E = malloc(sizeof *g->E * nk * nband);
-    if (!g->k || !g->E) return -4;
+    if (!g->k || !g->E) { fprintf(stderr, "[ERROR] out of memory\n"); return 1; }
 
     // 第二遍：读入；k 轴以第一块为准，其余块必须一致
     f = fopen(path, "r");
-    if (!f) return -1;
+    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
     int band = 0, i = 0;
     while (fgets(line, sizeof line, f)) {
         if (line_is_blank(line)) { if (i > 0) { band++; i = 0; } continue; }
@@ -76,7 +76,10 @@ static int gw_read(const char *path, GwData *g)
         if (sscanf(line, "%lf %lf", &kv, &ev) != 2) continue;
         if (band >= nband || i >= nk) break;
         if (band == 0) g->k[i] = kv;
-        else if (fabs(kv - g->k[i]) > 1e-8) { fclose(f); return -5; }
+        else if (fabs(kv - g->k[i]) > 1e-8) {
+            fprintf(stderr, "[ERROR] %s: band %d 的 k 轴与第 1 条带不一致\n", path, band + 1);
+            fclose(f); return 1;
+        }
         g->E[band * nk + i] = ev;
         i++;
     }
@@ -88,12 +91,12 @@ static int gw_read(const char *path, GwData *g)
 static int tb_read(const char *path, int nband, int *nk_out, double **k_out, double **e_out)
 {
     FILE *f = fopen(path, "r");
-    if (!f) { fprintf(stderr, "打不开 %s\n", path); return -1; }
+    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
 
     int cap = 1024, n = 0;
     double *k = malloc(sizeof *k * cap);
     double *e = malloc(sizeof *e * cap * nband);
-    if (!k || !e) { fclose(f); return -2; }
+    if (!k || !e) { fprintf(stderr, "[ERROR] out of memory\n"); fclose(f); return 1; }
 
     char line[512];
     while (fgets(line, sizeof line, f)) {
@@ -113,7 +116,7 @@ static int tb_read(const char *path, int nband, int *nk_out, double **k_out, dou
             cap *= 2;
             double *nk2 = realloc(k, sizeof *k * cap);
             double *ne2 = realloc(e, sizeof *e * cap * nband);
-            if (!nk2 || !ne2) { fclose(f); return -2; }
+            if (!nk2 || !ne2) { fprintf(stderr, "[ERROR] out of memory\n"); fclose(f); return 1; }
             k = nk2; e = ne2;
         }
         k[n] = v[0];
@@ -165,12 +168,12 @@ int main(void)
 {
     GwData gw;
     int rc = gw_read("MoS2-GWBSE-data/wannier90_band.dat", &gw);
-    if (rc) { fprintf(stderr, "读 GW 能带失败 (rc=%d)\n", rc); return 1; }
+    if (rc) { fprintf(stderr, "[ERROR] 读 GW 能带失败\n"); return 1; }
 
     int tb_n, nk, nk2;
     double *tb_k, *tb_e;
     if (tb_read("data/band_gw.dat", TB_NBAND, &tb_n, &tb_k, &tb_e)) {
-        fprintf(stderr, "读 TB 能带失败（先跑 ./build.sh）\n");
+        fprintf(stderr, "[ERROR] 读 TB 能带失败，先跑 ./build.sh 的 gw 目标\n");
         return 1;
     }
     double *k  = malloc(sizeof *k  * tb_n);
@@ -178,7 +181,7 @@ int main(void)
     nk = dedup(tb_n, tb_k, tb_e, TB_NBAND, k, E);
     nk2 = gw.nk;
     if (nk != nk2) {
-        fprintf(stderr, "k 点数不一致：TB %d，GW %d\n", nk, nk2);
+        fprintf(stderr, "[ERROR] k 点数不一致：TB %d，GW %d\n", nk, nk2);
         return 1;
     }
     double dk = 0;
@@ -271,7 +274,7 @@ int main(void)
     }
 
     FILE *out = fopen("data/fit_residual.dat", "w");
-    if (!out) { fprintf(stderr, "写 data/fit_residual.dat 失败\n"); return 1; }
+    if (!out) { fprintf(stderr, "[ERROR] cannot write data/fit_residual.dat\n"); return 1; }
     fprintf(out, "# col1 : k (Å^-1)\n");
     fprintf(out, "# col2-4 : 原始残差 r = E_GW - E_TB           [VB, CB1, CB2]\n");
     fprintf(out, "# col5-7 : 各自减去最优刚性平移后的残差\n");
