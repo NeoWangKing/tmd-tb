@@ -1,9 +1,5 @@
 # ---------------------------------------------------------------------------
 # 输出模式：0 = 弹出 Qt 窗口；1 = 写成 PNG 文件
-# 可以用命令行覆盖默认值，不必改文件：gnuplot -e "MODE=0" plot_soc.gp
-# 注意：默认值必须是 1 —— build.sh 是裸调 gnuplot（不带 -e），改成 0 之后
-#       build.sh 就不会再产出 img/ 里的图了，而且本机 Qt 终端开不了窗口时
-#       它是静默失败，不会有任何报错。
 # ---------------------------------------------------------------------------
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/TB-NN-NNN-TNN-SOC.png"
@@ -29,16 +25,8 @@ K  = map(1.244017)
 Mp = map(1.577350)
 Kp = map(1.910684)
 
-# ---------------------------------------------------------------------------
-# 零点对齐：价带条数由"电子数 / 模型"决定，两侧用同一条规则取价带顶的极大值。
-#   MoS2 单层有 18 个价电子 -> VASP 侧 9 条价带；含 SOC 时每带 2 个自旋分量，
-#   所以 ncl 文件里价带顶是第 2*9 = 18 条能级（列号 = 1 + 2*NV_VASP = 19）。
-#   本 TB 模型（含 SOC）：2 条价带 + 4 条导带，band_soc.dat 里按能量升序排列，
-#   价带顶 = 第 NV_TB 条 = 第 1+NV_TB = 3 列。
-# 两个坑：
-#   1) 必须写 column(1+NV)，写 (1+NV) 会被当成"数值"而不是"第几列"；
-#   2) stats 要放在 set xrange/yrange 之前，否则数据点会被坐标范围过滤掉。
-# ---------------------------------------------------------------------------
+# 零点取各自的价带顶：TB 第 3 列（2 条价带按能量升序），VASP(ncl) 第 19 列（9 条价带 × 2 自旋）
+# 注意用 column() 而不是 (1+NV)；stats 必须在 set xrange/yrange 之前
 NV_VASP = 9
 NV_TB   = 2
 
@@ -64,7 +52,7 @@ set arrow from K,  graph 0 to K,  graph 1 nohead lc black lw 0.5 front
 set arrow from Mp, graph 0 to Mp, graph 1 nohead lc black lw 0.5 front
 set arrow from Kp, graph 0 to Kp, graph 1 nohead lc black lw 0.5 front
 
-# 把两侧的零点标在图上：对齐方式必须可见、可核对
+# 零点标在图上，方便核对
 set label 1 sprintf("zero: TB VBM=%.4f / VASP VBM=%.4f eV", tb_vbm, vasp_vbm) \
       at graph 0.012, 0.95 font "Arial,9"
 

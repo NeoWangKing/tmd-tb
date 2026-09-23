@@ -1,15 +1,6 @@
 #!/bin/sh
-# 能带计算 + gnuplot 作图
-#
-#   阶段一（PATH_MODE=0，路径 M-Γ-K-M'-K'，横坐标 2π/a）：
-#           与 VASP 的 MoS2-pbe*.txt 对比（plot_nn / plot_tnn / plot_soc / plot_soc_spin）
-#   阶段二（PATH_MODE=1，路径 Γ-K-M-Γ，横坐标 Å⁻¹）：
-#           与 wannier90 的 GW 能带逐点对比（plot_gw，k 点与 GW 的 285 个点重合）
-#
-# 不依赖 LAPACK/BLAS（3x3 厄米本征问题由 main.c 内置的 Jacobi 求解器完成），
-# 也没有 macOS/Homebrew 的硬编码路径，Linux / macOS 都可以直接跑。
-#
-# 用法：./build.sh           （CC 可以用环境变量覆盖，如 CC=gcc ./build.sh）
+# 四个模型 + 两个 GW 路径模型：编译、算能带、出图。
+# 不依赖 LAPACK/BLAS，Linux / macOS 通用；CC 可用环境变量覆盖。
 
 set -xe
 
@@ -33,13 +24,13 @@ build_run() {
     fi
 }
 
-# --- 阶段一：与 VASP PBE 能带对比（PATH_MODE 默认为 0）---
+# 阶段一：对 VASP PBE 能带（PATH_MODE=0，默认）
 build_run nn
 build_run tnn      -DNNN_MODEL=1
 build_run soc      -DNNN_MODEL=1 -DSOC_MODEL=1
 build_run soc_spin -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=1
 
-# --- 阶段二：与 wannier90 的 GW 能带对比 ---
-# gw_nn 没有对应的作图脚本，只出 data/band_gw_nn.dat（被 plot_gw.gp 读取）
+# 阶段二：对 wannier90 的 GW 能带（PATH_MODE=1）
+# gw_nn 只出数据，被 plot_gw.gp 读取
 build_run gw_nn    -DPATH_MODE=1
 build_run gw       -DNNN_MODEL=1 -DPATH_MODE=1

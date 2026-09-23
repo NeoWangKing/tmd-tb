@@ -1,15 +1,5 @@
 # ---------------------------------------------------------------------------
-# GW (wannier90) vs TB：同一路径 Γ-K-M-Γ、同一横坐标单位 Å⁻¹、两侧各自 VBM 归零
-#
-#   数据来源：
-#     MoS2-GWBSE-data/wannier90_band.dat  —— GW 能带，17 条（无 SOC），按"带"分块存放
-#     data/band_gw.dat                    —— TB-NN+NNN+TNN（PATH_MODE=1）
-#     data/band_gw_nn.dat                 —— TB-仅NN（PATH_MODE=1）
-#   后两个由 ./build.sh 的 gw / gw_nn 目标生成。
-# ---------------------------------------------------------------------------
 # 输出模式：0 = 弹出 Qt 窗口；1 = 写成 PNG 文件
-# 可以用命令行覆盖默认值，不必改文件：gnuplot -e "MODE=0" plot_gw.gp
-# 注意：默认值必须是 1 —— build.sh 是裸调 gnuplot（不带 -e）。
 # ---------------------------------------------------------------------------
 if (!exists("MODE")) MODE = 1
 OUTFILE = "img/GW-vs-TB.png"
@@ -24,19 +14,19 @@ if (MODE == 1) {
 }
 
 # ---------------------------------------------------------------------------
-# 零点对齐：两侧各自取"价带顶那条带"的极大值
-#   GW 侧：MoS2 单层 18 个价电子 -> 9 条价带。注意文件是按【带】分块存的
-#          （每块 NK 行、块间以空行分隔），所以"第 NV_GW 条带"要用 every 按块取，
-#          块号从 0 开始，且四个字段必须写满：
-#              every ::<起始点>:<起始块>:<结束点>:<结束块>
-#          （踩过的两个坑：① 不能用 column() 选带的，因为"带"不是列；
-#                            ② every ::A::B 这种写法在这里不成立。）
-#   TB 侧：无 SOC，1 条价带 -> 第 2 列
+# GW (wannier90) vs TB：同一路径 Γ-K-M-Γ、同一横坐标单位 Å⁻¹、两侧各自 VBM 归零
+#
+#   数据来源：
+#     MoS2-GWBSE-data/wannier90_band.dat
+#     data/band_gw.dat
+#     data/band_gw_nn.dat
+#   后两个由 ./build.sh 的 gw / gw_nn 目标生成。
 # ---------------------------------------------------------------------------
 NV_GW = 9
 NK    = 285
 NV_TB = 1
 
+# GW 文件按带分块（每块 NK 行），取第 NV_GW 条带要用 every 的起止块号（从 0 起）
 stats "MoS2-GWBSE-data/wannier90_band.dat" every ::0:(NV_GW-1):(NK-1):(NV_GW-1) using 2 nooutput
 gw_vbm = STATS_max
 stats "data/band_gw.dat"    using (column(1+NV_TB)) nooutput
@@ -44,7 +34,7 @@ tb_vbm    = STATS_max
 stats "data/band_gw_nn.dat" using (column(1+NV_TB)) nooutput
 tb_vbm_nn = STATS_max
 
-# 高对称点（Å⁻¹），取自 wannier90_band.labelinfo.dat
+# 高对称点
 GX1 = 0.0
 KX  = 1.31633
 MX  = 1.97450

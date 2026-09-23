@@ -14,13 +14,9 @@
 #define SOC_SPIN 0
 #endif
 
-// 能带路径与横坐标单位（编译期开关）
-//   PATH_MODE = 0 : 路径 M → Γ → K → M' → K'，横坐标单位 2π/a
-//                   —— 阶段一与 VASP 的 MoS2-pbe*.txt 对比用
-//                      （gnuplot/plot_nn.gp、plot_tnn.gp、plot_soc.gp、plot_soc_spin.gp）
-//   PATH_MODE = 1 : 路径 Γ → K → M → Γ，横坐标单位 Å⁻¹
-//                   —— 阶段二与 wannier90 的 GW 能带逐点对比用（gnuplot/plot_gw.gp）
-//                      步数取 120/60/104，使 k 点与 wannier90_band.kpt 的 285 个点重合
+// 能带路径开关
+//   0 = M-Γ-K-M'-K'，横坐标 2π/a（对 VASP 的 MoS2-pbe*.txt）
+//   1 = Γ-K-M-Γ，横坐标 Å⁻¹，步数 120/60/104（对 wannier90 的 GW 能带，k 点一一对应）
 #ifndef PATH_MODE
 #define PATH_MODE 0
 #endif
@@ -28,17 +24,15 @@
 
 #define PI 3.14159265358979323846
 
-// 单层 MoS2 的晶格常数 (Å)。由 wannier90_band.labelinfo.dat 的三段路径长度
-// 分别反推：ΓK -> 3.182165、MΓ -> 3.182162、总长 -> 3.182164，取 3.182164。
-// 用来把 k 从 1/a 单位换算成 Å⁻¹。
+// 面内晶格常数 (Å)：由 labelinfo 的三段路径长度反推得 3.182164，用于 k 换算到 Å⁻¹
 #define A_ANG 3.182164
 
 #if PATH_MODE == 0
-  #define K_AXIS_UNIT    (2*PI)   // 横坐标：k 以 2π/a 为单位
+  #define K_AXIS_UNIT    (2*PI)   // k 单位 2π/a
   #define K_AXIS_LABEL   "k-path (fractional)"
   #define K_AXIS_LABEL_S "k-path (frac)"
 #else
-  #define K_AXIS_UNIT    (A_ANG)  // 横坐标：k 以 Å⁻¹ 为单位（与 wannier90 数据一致）
+  #define K_AXIS_UNIT    (A_ANG)  // k 单位 Å⁻¹
   #define K_AXIS_LABEL   "k-path (Å^-1)"
   #define K_AXIS_LABEL_S "k-path (Å^-1)"
 #endif
@@ -236,9 +230,7 @@ static void frac_to_cart_k(double f1, double f2, double *kx, double *ky)
 static void build_Hk(double kx, double ky, Mat NN_mats[6], Mat NNN_mats[6], Mat TNN_mats[6], double complex H[3][3])
 {
 #if !NNN_MODEL
-    // 仅最近邻时这两个参数用不到，显式忽略以免 -Wunused-parameter 警告
-    (void) NNN_mats;
-    (void) TNN_mats;
+    (void) NNN_mats; (void) TNN_mats;
 #endif
     // 初始化原位能（对角）
     for (int i=0;i<3;i++) {
@@ -303,17 +295,10 @@ static double find_vbm_from_sorted_eigenvalues(double *eig, int nband) {
     return eig[gap_idx]; // VBM 是价带的最大值
 }
 
-// ---------------------------------------------------------------------------
-// 3x3 复数厄米矩阵的本征值/本征矢：Jacobi 旋转法（不依赖 LAPACK）
-//
-//   A : 输入的 3x3 厄米矩阵（不被修改）
-//   w : 输出，3 个本征值，已按升序排列
-//   V : 输出，本征矢矩阵（第 j 列对应 w[j]，列之间正交归一）；允许传 NULL
-//
-// 对每个 (p,q) 子块：先用一个酉对角变换把耦合元 a_pq 的相位消掉（变成实数），
-// 再用一个实 Jacobi 旋转把它转掉；循环扫描所有 (p,q) 直到非对角元收敛。
-// 本征矢的总体相位是任意的（以后做 BSE 时需要另外固定相位）。
-// ---------------------------------------------------------------------------
+// 3x3 复数厄米矩阵 Jacobi 对角化（不依赖 LAPACK）
+//   w: 升序本征值；V: 本征矢按列存放（正交归一），传 NULL 则只求本征值。
+// 每个 (p,q) 先做一次酉变换把 a_pq 的相位消掉，再用实 Jacobi 旋转把它转掉。
+// 本征矢的总体相位任意，做 BSE 时需另行固定。
 static void herm3_jacobi(const double complex A[3][3], double w[3], double complex V[3][3])
 {
     double complex a[3][3];
@@ -475,7 +460,6 @@ static const double Mp[2]    = {0.5, 0.0};          // M' 点
 static const double Kp[2]    = {1.0/3.0, -1.0/3.0}; // K' 点
 #endif
 
-// 路径由 PATH_MODE 决定（见文件开头）
 static Segment path[] = {
 #if PATH_MODE == 0
     {M, GAMMA, 40},
@@ -556,8 +540,7 @@ int main(void)
 
     double complex HK[3][3];
     double kKx, kKy;
-    // build_Hk 要的是笛卡尔 k：这里必须先把分数坐标 (2/3,1/3) 换算过去。
-    // （原来直接把分数坐标当笛卡尔 k 传进去，打印出来的 H(K) 是错的）
+    // 注意 build_Hk 收的是笛卡尔 k，不能直接传分数坐标
     frac_to_cart_k(2.0/3.0, 1.0/3.0, &kKx, &kKy);
     build_Hk(kKx, kKy, NN_mats, NNN_mats, TNN_mats, HK);
     printf("\n");
