@@ -43,7 +43,10 @@ set label 2 sprintf("初值 RMS: VB %.3f  CB1 %.3f  CB2 %.3f eV", ri1, ri2, ri3)
       at graph 0.015, 0.90 font "Arial,9"
 
 set dashtype 2 (5,3)
-plot "data/gw_fit_bands.dat" using 1:($2-gw_vbm)   w l lc "orange" lw 3   title "GW 参考", \
+# 第一行：GW 的全部能带（原始文件里 17 条按块存放，一条 plot 命令即可全部画出）
+# —— 淡橙色细线，只作为背景参考（窗口外的会被裁掉）
+plot "MoS2-GWBSE-data/wannier90_band.dat" using 1:($2-gw_vbm) w l lc rgb "#f2b070" lw 1 title "GW 其他能带", \
+     "data/gw_fit_bands.dat" using 1:($2-gw_vbm)   w l lc "orange" lw 3   title "GW 参考（拟合用的 3 条）", \
      "data/gw_fit_bands.dat" using 1:($3-gw_vbm)   w l lc "orange" lw 3   notitle, \
      "data/gw_fit_bands.dat" using 1:($4-gw_vbm)   w l lc "orange" lw 3   notitle, \
      "data/gw_fit_bands.dat" using 1:($8-fit_vbm)  w l lc "blue"   lw 2.5 dt 2 title "拟合 TB", \
