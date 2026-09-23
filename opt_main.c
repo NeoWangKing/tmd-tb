@@ -29,13 +29,27 @@
 static const int TB_PAIR[3] = {1, 2, 3};
 static const int GW_PAIR[3] = {9, 10, 11};
 
+// 重连用的候选能级范围（1-based）：覆盖最低的几条导带
+#define CAND_FIRST 10
+#define CAND_LAST  14
+#define NCAND      (CAND_LAST - CAND_FIRST + 1)
+
+// 参考能带的配对方式：
+//   0 = 直接用排序块（"第 10/11 条带"）——简单、稳健，交叉处排序曲线有折点
+//   1 = 先用斜率外推重连成物理能带再拟合 ——目标更光滑，但重连本身是启发式
+#ifndef RECONNECT
+#define RECONNECT 0
+#endif
+
 // GW 路径上的高对称点位置 (Å^-1)，用于报告分区残差
 static const double SYM_K[3]  = {0.0, 1.31633, 1.97450};
 static const char  *SYM_NM[3] = {"Γ", "K", "M"};
 
 static int nk;
 static double *kx, *ky;        // TB 单位（1/a）的笛卡尔 k
-static double *gw_ref[3];      // 各带对的参考能量
+static double *gw_ref[3];      // 各带对的目标能量（重连后的物理能带）
+static double *gsorted[3];     // 排序块 9/10/11（仅用于诊断）
+static double *recon;          // 重连结果 [NCAND*nk]
 
 static void unpack(const double *p, TB_Params *q)
 {
@@ -116,7 +130,51 @@ int main(void)
         fprintf(stderr, "[ERROR] k 点数不一致：kpt %d，band %d\n", nk, gw.nk);
         return 1;
     }
-    for (int b = 0; b < NPAIR; ++b) gw_ref[b] = gw.E + (GW_PAIR[b] - 1) * nk;
+    for (int b = 0; b < 3; ++b) gsorted[b] = gw.E + (GW_PAIR[0] - 1 + b) * nk;
+
+    // ---- 重连：把"每个 k 点排序好的能级"接回物理能带 ----
+    {
+        double *cand = malloc(sizeof(double) * NCAND * nk);
+        for (int c = 0; c < NCAND; ++c)
+            memcpy(cand + c * nk, gw.E + (CAND_FIRST - 1 + c) * nk, sizeof(double) * nk);
+        recon = malloc(sizeof(double) * NCAND * nk);
+
+        int anchor = 0;
+        for (int i = 1; i < nk; ++i)
+            if (fabs(gw.k[i] - 1.31633) < fabs(gw.k[anchor] - 1.31633)) anchor = i;
+        if (gw_reconnect(nk, NCAND, cand, anchor, recon)) {
+            fprintf(stderr, "[ERROR] 参考能带重连失败\n");
+            return 1;
+        }
+
+        double r0 = 0, r1 = 0;
+        for (int c = 0; c < NCAND; ++c)
+            for (int i = 1; i < nk - 1; ++i) {
+                double d0 = cand[c*nk+i+1] - 2*cand[c*nk+i] + cand[c*nk+i-1];
+                double d1 = recon[c*nk+i+1] - 2*recon[c*nk+i] + recon[c*nk+i-1];
+                r0 += d0*d0;
+                r1 += d1*d1;
+            }
+        printf("参考能带重连（斜率外推，锚点 = K）：\n");
+        printf("  总粗糙度 Σ(二阶差分)²：排序块 %.5f -> 重连后 %.5f\n", r0, r1);
+        for (int c = 0; c < 3; ++c) {
+            int diff = 0;
+            for (int i = 0; i < nk; ++i)
+                if (fabs(recon[c*nk+i] - cand[c*nk+i]) > 1e-9) diff++;
+            printf("    物理带%d：与排序块%d 不同的 k 点 %d/%d（%.0f%%）\n",
+                   c + 1, CAND_FIRST + c, diff, nk, 100.0 * diff / nk);
+        }
+        printf("\n");
+    }
+
+#if RECONNECT
+    // 价带用排序块 9（本身很干净），两条导带用重连后的物理能带
+    gw_ref[0] = gsorted[0];
+    gw_ref[1] = recon + 0 * nk;
+    gw_ref[2] = recon + 1 * nk;
+#else
+    for (int b = 0; b < NPAIR; ++b) gw_ref[b] = gsorted[b];
+#endif
 
     // 自检：把 .kpt 重建的 k 点累加成路径长度，应与参考文件的 k 轴一致
     double cum = 0, dk = 0;
@@ -212,24 +270,27 @@ int main(void)
     {
         const double eps = 0.02;   // 近简并判据 (eV)
         int namb = 0;
-        double e1 = 0, e2 = 0;
+        double e1 = 0, e2 = 0, es = 0;
         for (int i = 0; i < nk; ++i) {
             int amb = 0;
             for (int a = 0; a < 3 && !amb; ++a)
                 for (int b = a + 1; b < 3; ++b) {
-                    double da = gw_ref[a][i] - gw_ref[b][i];
+                    double da = gsorted[a][i] - gsorted[b][i];
                     if (fabs(da) < eps) amb = 1;
                 }
             if (amb) namb++;
             for (int b = 0; b < NPAIR; ++b) {
                 double d = gw_ref[b][i] - tb[b * nk + i];
                 if (amb) e2 += d * d; else e1 += d * d;
+                double ds = gsorted[b][i] - tb[b * nk + i];
+                es += ds * ds;
             }
         }
         printf("\n配对歧义诊断（|ΔE| < %.2f eV 视为分不清是哪条物理能带）：\n", eps);
         printf("  歧义 k 点 %d/%d（%.0f%%）\n", namb, nk, 100.0 * namb / nk);
         printf("  无歧义点上的 RMS = %.4f eV（全部点 %.4f eV）\n",
                sqrt(e1 / ((double)NPAIR * (nk - namb))), sqrt((e1 + e2) / ((double)NPAIR * nk)));
+        printf("  对照：若直接用排序块当目标，RMS = %.4f eV\n", sqrt(es / ((double)NPAIR * nk)));
     }
 
     printf("\n高对称点残差 E_GW − E_TB (eV)：初值 -> 拟合后\n");
