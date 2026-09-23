@@ -5,6 +5,18 @@
 #include "tb.h"
 #include "herm3.h"
 
+static TB_Params P = {
+#if NNN_MODEL
+    .e1 = e1, .e2 = e2,
+    .t11 = t11, .t12 = t12, .t13 = t13, .t22 = t22, .t23 = t23, .t33 = t33,
+    .r11 = r11, .r12 = r12, .r21 = r21, .r22 = r22, .r23 = r23,
+    .u11 = u11, .u12 = u12, .u13 = u13, .u22 = u22, .u23 = u23, .u33 = u33,
+#else
+    .e1 = e1, .e2 = e2,
+    .t11 = t11, .t12 = t12, .t13 = t13, .t22 = t22, .t23 = t23, .t33 = t33,
+#endif
+};
+
 static double b1x, b1y, b2x, b2y;
 
 static Mat C3; // 绕z轴旋转120° (C3)
@@ -16,6 +28,9 @@ static Mat NN_vec;  // 最近邻 (6个)
 static Mat NNN_vec; // 次近邻 (6个)
 static Mat TNN_vec; // 第三近邻 (6个)
 #endif
+
+const TB_Params *tb_get_params(void) { return &P; }
+void tb_set_params(const TB_Params *p) { P = *p; }
 
 static void init_reciprocal(void)
 {
@@ -81,7 +96,8 @@ static void init_vectors(void)
 // 对实数矩阵施加对称操作： M' = op * M * op^T
 static void apply_symmetry(Mat Mout, Mat op, Mat Min)
 {
-    Mat tmp = mat_alloc(3, 3); Mat opT = mat_alloc(3, 3);
+    static Mat tmp, opT;
+    if (!tmp.es) { tmp = mat_alloc(3, 3); opT = mat_alloc(3, 3); }
     mat_transpose(opT, op);
     mat_dot(tmp, op, Min);
     mat_dot(Mout, tmp, opT);
@@ -91,26 +107,26 @@ static void apply_symmetry(Mat Mout, Mat op, Mat Min)
 // 最近邻 E(R1) 
 static void build_E_NN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  t11; MAT_AT(E, 0, 1) =  t12; MAT_AT(E, 0, 2) = t13;
-    MAT_AT(E, 1, 0) = -t12; MAT_AT(E, 1, 1) =  t22; MAT_AT(E, 1, 2) = t23;
-    MAT_AT(E, 2, 0) =  t13; MAT_AT(E, 2, 1) = -t23; MAT_AT(E, 2, 2) = t33;
+    MAT_AT(E, 0, 0) =  P.t11; MAT_AT(E, 0, 1) =  P.t12; MAT_AT(E, 0, 2) = P.t13;
+    MAT_AT(E, 1, 0) = -P.t12; MAT_AT(E, 1, 1) = P.t22; MAT_AT(E, 1, 2) =  P.t23;
+    MAT_AT(E, 2, 0) =  P.t13; MAT_AT(E, 2, 1) = -P.t23; MAT_AT(E, 2, 2) = P.t33;
 }
 
 #if NNN_MODEL
 // 次近邻 E(~R1)
 static void build_E_NNN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  r11;           MAT_AT(E, 0, 1) = r12; MAT_AT(E, 0, 2) = -r12/sqrt(3.0);
-    MAT_AT(E, 1, 0) =  r21;           MAT_AT(E, 1, 1) = r22; MAT_AT(E, 1, 2) = r23;
-    MAT_AT(E, 2, 0) = -r21/sqrt(3.0); MAT_AT(E, 2, 1) = r23; MAT_AT(E, 2, 2) = r22 + 2*r23/sqrt(3.0);
+    MAT_AT(E, 0, 0) =  P.r11;           MAT_AT(E, 0, 1) = P.r12; MAT_AT(E, 0, 2) = -P.r12/sqrt(3.0);
+    MAT_AT(E, 1, 0) =  P.r21;           MAT_AT(E, 1, 1) = P.r22; MAT_AT(E, 1, 2) = P.r23;
+    MAT_AT(E, 2, 0) = -P.r21/sqrt(3.0); MAT_AT(E, 2, 1) = P.r23; MAT_AT(E, 2, 2) = P.r22 + 2*P.r23/sqrt(3.0);
 }
 
 // 第三近邻 E(2R1)
 static void build_E_TNN_R1(Mat E)
 {
-    MAT_AT(E, 0, 0) =  u11; MAT_AT(E, 0, 1) =  u12; MAT_AT(E, 0, 2) = u13;
-    MAT_AT(E, 1, 0) = -u12; MAT_AT(E, 1, 1) =  u22; MAT_AT(E, 1, 2) = u23;
-    MAT_AT(E, 2, 0) =  u13; MAT_AT(E, 2, 1) = -u23; MAT_AT(E, 2, 2) = u33;
+    MAT_AT(E, 0, 0) =  P.u11; MAT_AT(E, 0, 1) =  P.u12; MAT_AT(E, 0, 2) = P.u13;
+    MAT_AT(E, 1, 0) = -P.u12; MAT_AT(E, 1, 1) = P.u22; MAT_AT(E, 1, 2) =  P.u23;
+    MAT_AT(E, 2, 0) =  P.u13; MAT_AT(E, 2, 1) = -P.u23; MAT_AT(E, 2, 2) = P.u33;
 }
 #endif // NNN_NODEL
 #endif // NN_NODEL
@@ -118,11 +134,14 @@ static void build_E_TNN_R1(Mat E)
 #if NN_MODEL
 static void generate_hopping_matrices_NN(Mat mats[6])
 {
-    Mat C3sq = mat_alloc(3, 3);
+    static Mat C3sq, sigmaC3, sigmaC3sq;
+    if (!C3sq.es) {
+        C3sq = mat_alloc(3, 3);
+        sigmaC3 = mat_alloc(3, 3);
+        sigmaC3sq = mat_alloc(3, 3);
+    }
     mat_dot(C3sq, C3, C3);
-    Mat sigmaC3 = mat_alloc(3,3);
     mat_dot(sigmaC3, Sv, C3);
-    Mat sigmaC3sq = mat_alloc(3,3);
     mat_dot(sigmaC3sq, Sv, C3sq);
 
     // R1
@@ -142,11 +161,14 @@ static void generate_hopping_matrices_NN(Mat mats[6])
 #if NNN_MODEL
 static void generate_hopping_matrices_TNN(Mat mats[6])
 {
-    Mat C3sq = mat_alloc(3, 3);
+    static Mat C3sq, sigmaC3, sigmaC3sq;
+    if (!C3sq.es) {
+        C3sq = mat_alloc(3, 3);
+        sigmaC3 = mat_alloc(3, 3);
+        sigmaC3sq = mat_alloc(3, 3);
+    }
     mat_dot(C3sq, C3, C3);
-    Mat sigmaC3 = mat_alloc(3,3);   // σv * C3
     mat_dot(sigmaC3, Sv, C3);
-    Mat sigmaC3sq = mat_alloc(3,3); // σv * C3²
     mat_dot(sigmaC3sq, Sv, C3sq);
 
     // R1
@@ -165,10 +187,10 @@ static void generate_hopping_matrices_TNN(Mat mats[6])
 
 static void generate_hopping_matrices_NNN(Mat mats[6])
 {
-    Mat C3sq = mat_alloc(3,3);
+    static Mat C3sq, E1;
+    if (!C3sq.es) { C3sq = mat_alloc(3, 3); E1 = mat_alloc(3, 3); }
     mat_dot(C3sq, C3, C3);
 
-    Mat E1 = mat_alloc(3,3);
     build_E_NNN_R1(E1);      // R̃1
 
     // R̃1
@@ -203,9 +225,9 @@ void tb_build_Hk(const TB_Hop *hop, double kx, double ky, double complex H[3][3]
             H[i][j] = 0.0;
         }
     }
-    H[0][0] = e1;
-    H[1][1] = e2;
-    H[2][2] = e2;
+    H[0][0] = P.e1;
+    H[1][1] = P.e2;
+    H[2][2] = P.e2;
 
     // 最近邻贡献
     for (int n=0; n<6; n++) {
@@ -253,6 +275,12 @@ void tb_init(TB_Hop *hop)
         hop->NNN[i] = mat_alloc(3, 3);
         hop->TNN[i] = mat_alloc(3, 3);
     }
+    tb_update_hopping(hop);
+}
+
+// 按当前参数重新生成跳跃矩阵（拟合循环里每换一组参数调用一次）
+void tb_update_hopping(TB_Hop *hop)
+{
 #if NN_MODEL
     generate_hopping_matrices_NN(hop->NN);
 #if NNN_MODEL

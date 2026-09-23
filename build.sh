@@ -9,7 +9,7 @@ if [ -z "$CC" ]; then
     if command -v clang >/dev/null 2>&1; then CC=clang; else CC=cc; fi
 fi
 CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Isrc"
-LIBSRC="src/mat.c src/tb.c src/herm3.c src/kpath.c"
+LIBSRC="src/mat.c src/tb.c src/herm3.c src/kpath.c src/gwdata.c"
 SRC="main.c $LIBSRC"
 
 mkdir -p bin data img
@@ -41,3 +41,8 @@ build_run gw       -DNNN_MODEL=1 -DPATH_MODE=1
 "$CC" $CFLAGS -o bin/fit_main $LIBSRC fit_main.c -lm
 ./bin/fit_main > data/fit_report.txt
 gnuplot gnuplot/plot_fit.gp
+
+# 全路径拟合（Step B）：直接读 GW 参考能带，调 tb_set_params 试参数
+"$CC" $CFLAGS -o bin/opt_main $LIBSRC opt_main.c -DNNN_MODEL=1 -lm
+./bin/opt_main > data/opt_report.txt
+gnuplot gnuplot/plot_opt.gp

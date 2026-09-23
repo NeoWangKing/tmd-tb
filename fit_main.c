@@ -6,11 +6,10 @@
 #include <string.h>
 #include <math.h>
 #include "config.h"
+#include "gwdata.h"
 #include "tb.h"
 
 #define TB_NBAND 3
-#define GW_NBAND_MAX 64
-#define NK_MAX 100000
 
 // 比较的带对：TB 第 TB_BAND[i] 条  <->  GW 第 GW_BAND[i] 条
 static const int TB_BAND[3] = {1, 2, 3};
@@ -21,125 +20,6 @@ static const char *PAIR[3]  = {"价带  VB ", "导带1 CB1", "导带2 CB2"};
 static const double SYM_K[4]  = {0.0, 1.31633, 1.97450, 3.11448};
 static const char  *SYM_NM[4] = {"Γ", "K", "M", "Γ(末)"};
 
-typedef struct {
-    int nband;
-    int nk;
-    double *k;      // [nk]
-    double *E;      // [nband*nk]，按带分块
-} GwData;
-
-static int line_is_blank(const char *s)
-{
-    for (; *s; ++s) if (*s != ' ' && *s != '\t' && *s != '\n' && *s != '\r') return 0;
-    return 1;
-}
-
-static int gw_read(const char *path, GwData *g)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
-
-    // 第一遍：数每条带的点数，并检查各带点数一致
-    char line[512];
-    int nband = 0, nk = -1, cnt = 0;
-    while (fgets(line, sizeof line, f)) {
-        if (line_is_blank(line)) {
-            if (cnt > 0) {
-                if (nk < 0) nk = cnt; else if (cnt != nk) return 1;
-                nband++; cnt = 0;
-            }
-            continue;
-        }
-        if (line[0] == '#') continue;
-        cnt++;
-    }
-    if (cnt > 0) { if (nk < 0) nk = cnt; else if (cnt != nk) return 1; nband++; }
-    fclose(f);
-    if (nband <= 0 || nk <= 0 || nband > GW_NBAND_MAX || nk > NK_MAX) {
-        fprintf(stderr, "[ERROR] %s: nband=%d nk=%d 不合理\n", path, nband, nk);
-        return 1;
-    }
-
-    g->nband = nband; g->nk = nk;
-    g->k = malloc(sizeof *g->k * nk);
-    g->E = malloc(sizeof *g->E * nk * nband);
-    if (!g->k || !g->E) { fprintf(stderr, "[ERROR] out of memory\n"); return 1; }
-
-    // 第二遍：读入；k 轴以第一块为准，其余块必须一致
-    f = fopen(path, "r");
-    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
-    int band = 0, i = 0;
-    while (fgets(line, sizeof line, f)) {
-        if (line_is_blank(line)) { if (i > 0) { band++; i = 0; } continue; }
-        if (line[0] == '#') continue;
-        double kv, ev;
-        if (sscanf(line, "%lf %lf", &kv, &ev) != 2) continue;
-        if (band >= nband || i >= nk) break;
-        if (band == 0) g->k[i] = kv;
-        else if (fabs(kv - g->k[i]) > 1e-8) {
-            fprintf(stderr, "[ERROR] %s: band %d 的 k 轴与第 1 条带不一致\n", path, band + 1);
-            fclose(f); return 1;
-        }
-        g->E[band * nk + i] = ev;
-        i++;
-    }
-    fclose(f);
-    return 0;
-}
-
-// 读 TB 能带表：跳过 # 注释行，每行 1 + nband 列（k 与 nband 个能量）
-static int tb_read(const char *path, int nband, int *nk_out, double **k_out, double **e_out)
-{
-    FILE *f = fopen(path, "r");
-    if (!f) { fprintf(stderr, "[ERROR] cannot open %s\n", path); return 1; }
-
-    int cap = 1024, n = 0;
-    double *k = malloc(sizeof *k * cap);
-    double *e = malloc(sizeof *e * cap * nband);
-    if (!k || !e) { fprintf(stderr, "[ERROR] out of memory\n"); fclose(f); return 1; }
-
-    char line[512];
-    while (fgets(line, sizeof line, f)) {
-        if (line[0] == '#' || line_is_blank(line)) continue;
-        double v[8];
-        int got = 0;
-        char *p = line;
-        for (int j = 0; j < nband + 1; ++j) {
-            char *end;
-            double x = strtod(p, &end);
-            if (end == p) break;
-            v[got++] = x;
-            p = end;
-        }
-        if (got != nband + 1) continue;         // 列数不对，跳过
-        if (n == cap) {
-            cap *= 2;
-            double *nk2 = realloc(k, sizeof *k * cap);
-            double *ne2 = realloc(e, sizeof *e * cap * nband);
-            if (!nk2 || !ne2) { fprintf(stderr, "[ERROR] out of memory\n"); fclose(f); return 1; }
-            k = nk2; e = ne2;
-        }
-        k[n] = v[0];
-        for (int j = 0; j < nband; ++j) e[n * nband + j] = v[j + 1];
-        n++;
-    }
-    fclose(f);
-    *nk_out = n; *k_out = k; *e_out = e;
-    return 0;
-}
-
-// 去掉相邻重复的 k（段端点被打印两次；GW 文件里每个 k 只出现一次）
-static int dedup(int n, const double *k, const double *e, int nband, double *k2, double *e2)
-{
-    int m = 0;
-    for (int i = 0; i < n; ++i) {
-        if (m > 0 && fabs(k[i] - k2[m-1]) < 1e-9) continue;
-        k2[m] = k[i];
-        for (int j = 0; j < nband; ++j) e2[m * nband + j] = e[i * nband + j];
-        m++;
-    }
-    return m;
-}
 
 // RMS（相对 0）
 static double rms0(const double *v, int n)
