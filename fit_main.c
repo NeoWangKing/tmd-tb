@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include "config.h"
+#include "bandtrack.h"
 #include "gwdata.h"
 #include "tb.h"
 
