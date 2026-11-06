@@ -66,14 +66,39 @@ HSE06 仍然是密度泛函框架内的杂化泛函，它给出的带隙比准�
 做激子计算时，这个差别会直接抵消掉一部分束缚能，
 所以本学期的第一步是把目标能带换成 GW 能带，重新拟合同一套参数。
 
-\subsection{本篇要做的三件事}
+\subsection{三个目标与章节对应}
+
+课题开始时定下的三个目标是
 
 \begin{enumerate}
-  \item 把 19 个参数重新拟合到 GW 能带，并处理 GW 数据中能带身份的问题；
-  \item 引入描述二维屏蔽的 Keldysh 势，确定其中的介电环境参数；
-  \item 在拟合好的三能带模型上求解 Bethe-Salpeter 方程，得到激子能级，
-        与 VASP 的 BSE 结果（\texttt{BSEEIGS.dat}）对照。
+  \item 实现 GW 能级的三带紧束缚模型。模型结构完全不动，只把参数重新拟合到 GW 能带。
+  \item 实现论文式~(6) 的计算，也就是 Bethe-Salpeter 方程的核。
+  \item 解论文式~(5) 得到激子能级，与 VASP 算好的 BSE 结果对照。
 \end{enumerate}
+
+三条目标与本文章节的对应关系列在表~\ref{tab:goals}，往下读时可以对着它看进度。
+
+\begin{table}[htbp]
+\centering
+\caption{三个目标与章节的对应。状态栏与各节标题上的标记一致。}
+\label{tab:goals}
+\begin{tabular}{@{}clll@{}}
+\toprule
+目标 & 内容 & 章节 & 状态\\
+\midrule
+1 & 重新拟合 19 个参数，得到 GW 能级的三带模型 &
+    \S4、\S5 & 已完成\\
+2 & BSE 核，即论文式~(6)（本文式~\eqref{eq:kernel}）：
+    屏蔽势、轨道交叠、$\qq\to0$ 的正则化 &
+    \S6、\S7.1--\S7.3 & 待完成\\
+3 & 解论文式~(5)（本文式~\eqref{eq:bse}）得激子能级，与 \texttt{BSEEIGS.dat} 对照 &
+    \S7.4、\S10 & 待完成\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+论文式~(11)--(16) 的光学响应不在三个目标之内，属于做完激子能级之后的下一步，
+放在 \S8。
 
 工作流程是先在单粒子层面把模型修好，再在同一个模型上叠加电子-空穴相互作用。
 这样做的好处是单粒子部分的误差与相互作用部分的误差可以分开检验，
