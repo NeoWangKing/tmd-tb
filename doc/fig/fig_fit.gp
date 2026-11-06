@@ -5,11 +5,11 @@ OUTFILE = "doc/fig/fig_fit.png"
 if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal @GTERM font "Arial,10" size 880,560 enhanced
+  set terminal @GTERM font "Arial,18" size 880,560 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {
-  set terminal qt persist font "Arial,10" size 880,560 enhanced
+  set terminal qt persist font "Arial,18" size 880,560 enhanced
   print "MODE = 0 -> 弹出 Qt 窗口"
 }
 
@@ -24,12 +24,12 @@ GX = 3.11448
 set xlabel "k-path (Å^{-1})"
 set ylabel "Energy (eV, VBM 归零)"
 set xrange [0:GX]
-set yrange [-1.7:5.0]
+set yrange [-1.9:5.7]
 set grid
 set xtics ("Γ" 0, "K" KX, "M" MX, "Γ" GX)
 set arrow from KX, graph 0 to KX, graph 1 nohead lc rgb "black" lw 0.8 front
 set arrow from MX, graph 0 to MX, graph 1 nohead lc rgb "black" lw 0.8 front
-set key top right
+set key top right font "Arial,13"
 set dashtype 2 (5,3)
 
 plot "data/gw_fit_bands.dat" using 1:($2-gw_vbm) w l lc "orange" lw 3   title "GW 参考", \

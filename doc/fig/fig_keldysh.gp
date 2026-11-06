@@ -5,11 +5,11 @@ OUTFILE = "doc/fig/fig_keldysh.png"
 if (!exists("GTERM")) GTERM = "pngcairo"
 
 if (MODE == 1) {
-  set terminal @GTERM font "Arial,10" size 760,520 enhanced
+  set terminal @GTERM font "Arial,18" size 760,520 enhanced
   set output OUTFILE
   print "MODE = 1 -> 输出 ", OUTFILE
 } else {
-  set terminal qt persist font "Arial,10" size 760,520 enhanced
+  set terminal qt persist font "Arial,18" size 760,520 enhanced
   print "MODE = 0 -> 弹出 Qt 窗口"
 }
 
@@ -25,11 +25,11 @@ set ylabel "|u(q)| (eV Å^2)"
 set xrange [1e-3:2]
 set yrange [0.4:1e5]
 set grid
-set key top right
+set key top right font "Arial,13"
 set arrow from 1/r0, graph 0 to 1/r0, graph 1 nohead dt 3 lc rgb "#606060"
-set label 1 "q = 1/r_0" at 1/r0*1.3, 1.2e4 font "Arial,9"
-set label 2 "1/q" at 2e-3, 120 font "Arial,10" tc rgb "#808080"
-set label 3 "1/(r_0 q^2)" at 1.15, 2.2 font "Arial,10" tc rgb "#1f77b4"
+set label 1 "q = 1/r_0" at 1/r0*1.3, 1.2e4 font "Arial,16"
+set label 2 "1/q" at 2e-3, 120 font "Arial,18" tc rgb "#808080"
+set label 3 "1/(r_0 q^2)" at 1.15, 2.2 font "Arial,18" tc rgb "#1f77b4"
 
 plot bare(x) w l lc rgb "#808080" lw 1.8 dt 2 title "裸库仑（r_0 = 0）", \
      u(x)    w l lc rgb "#1f77b4" lw 2.6 title "Keldysh（r_0 = 13.55 Å，ε_d = 2.5）"
