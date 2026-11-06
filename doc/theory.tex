@@ -5,10 +5,13 @@
 
 \usepackage{amsmath,amssymb,bm}
 \usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{float}
 \usepackage{geometry}
 \usepackage{xcolor}
 \usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
 \geometry{margin=2.6cm}
+\graphicspath{{fig/}}
 
 \newcommand{\kk}{\mathbf{k}}
 \newcommand{\kq}{\mathbf{k}'}
@@ -214,10 +217,11 @@ Wannier90 在每个 $k$ 点按能量从小到大输出能级。
 拼接之后若仍按序号配到物理带 2，偏差反而涨到 0.074~eV。
 改成物理带 1 与物理带 3 的配对，才降到 0.033~eV。
 
+
 \subsection{最小曲率拼接}
 
 解决办法是先把按能量排序的能级接回物理能带，再谈配对。
-判据取最小曲率。
+判据取最小曲率（图~\ref{fig:stitch}~给出了拼接前后的对比）。
 从 $K$ 点出发向两侧逐点走，$K$ 点各带分得最开、顺序没有歧义，可以作为锚点。
 每走一步，用前两步的位置线性外推得到各带的预测位置
 \begin{equation}
@@ -250,6 +254,17 @@ $K$ 谷附近模型的第二条导带能量较高。
 以 $K$ 点为例，模型给出 2.990~eV，GW 的物理带 2 是 2.419~eV，相差 0.57~eV；
 物理带 3 是 2.974~eV，只差 16~meV。
 若强行配物理带 2，拟合残差会增大到 0.07~eV 以上。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.84\textwidth]{fig_stitch.png}
+\caption{排序本征值与拼接后的物理能带。
+上图黑色虚线是按能量排序的第 10、11 条导带，它们在交叉处会从一条物理带跳到另一条，
+彩色实线是拼接后的物理带 1 与物理带 3。
+下图以拟合好的参数为例，用排序块当参考时残差在身份互换处跳到 0.5~eV 以上，
+换成物理带当参考后残差平滑，量级降到几十 meV。}
+\label{fig:stitch}
+\end{figure}
 
 %=====================================================================
 \section{在 GW 能带上重新拟合参数}
@@ -294,7 +309,7 @@ f_{\mathrm{loss}}(\mathbf p)=\sum_{n\in\{\mathrm{VB},\mathrm{CB1},\mathrm{CB2}\}
 
 拟合后的均方根偏差为 0.0334~eV，
 分带为价带 0.0356~eV，第一导带 0.0385~eV，第二导带 0.0242~eV。
-高对称点上的残差都在 $\pm0.04$~eV 以内。
+高对称点上的残差都在 $\pm0.04$~eV 以内（图~\ref{fig:fit}）。
 作为对照，上一篇的 HSE06 拟合在 $M$ 谷附近约 15~meV，本篇的残差更大。
 原因在第 3 节已经说明，GW 修正不均匀，三能带模型吸收不了。
 
@@ -322,6 +337,14 @@ f_{\mathrm{loss}}(\mathbf p)=\sum_{n\in\{\mathrm{VB},\mathrm{CB1},\mathrm{CB2}\}
 拟合后的模型在 $K$ 点的带隙为 2.6548~eV，
 GW 的直接带隙为 2.6416~eV，相差 13~meV。
 这个差值会整体平移到后面所有的激子能级上。
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{fig_fit.png}
+\caption{GW 参考能带（橙色）与拟合后的三能带模型（蓝色虚线）。
+灰色点线是文献参数在同样路径上的结果。三条曲线都按各自的价带顶归零。}
+\label{fig:fit}
+\end{figure}
+
 
 %=====================================================================
 \section{介电屏蔽与 Keldysh 势}
@@ -363,6 +386,18 @@ $\eps_1=1$，$\eps_3=4$，$\eps_2=12$，$d=6$~\AA{}，得到
 这一组数对应 air/SiO$_2$ 环境。
 作为对比基准的 VASP BSE 若用了别的介电环境，
 $\eps_d$ 与 $r_0$ 需要按式~\eqref{eq:r0}~相应替换。
+
+图~\ref{fig:keldysh}~给出了式~\eqref{eq:keldysh}~与裸库仑势的对比。
+$q\ll1/r_0$ 时两者几乎重合，$q\gg1/r_0$ 时 Keldysh 势多出一个 $1/(r_0q)$ 因子，
+下降得更快，屏蔽的效果正体现在这一段。
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.64\textwidth]{fig_keldysh.png}
+\caption{Keldysh 屏蔽势与裸库仑势的对比（双对数）。
+取 $r_0=13.55$~\AA{}、$\eps_d=2.5$，竖线标出 $q=1/r_0$。}
+\label{fig:keldysh}
+\end{figure}
 
 换到 eV 与 \AA{} 单位，取 $e^2/(4\pi\eps_0)=14.3996$~eV\AA{}，
 式~\eqref{eq:keldysh}~写成

@@ -87,6 +87,9 @@ build_run gwfit    -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
 "$CC" $CFLAGS -o bin/opt_main $LIBSRC opt_main.c -DNNN_MODEL=1 -lm
 ./bin/opt_main > data/opt_report.txt
 
+# 文档插图的数据：把两个表按行并排（gnuplot 只能在一个文件里算列间差）
+awk -f doc/fig/pair.awk data/gw_reconnect.dat data/gw_fit_bands.dat > data/fig_stitch.dat
+
 # ---- 作图 ----
 # 阶段一
 plot gnuplot/plot_nn.gp       img/TB-NN.png
@@ -99,6 +102,10 @@ plot gnuplot/plot_fit.gp       img/GW-residual.png
 plot gnuplot/plot_opt.gp       img/GW-fit.png
 plot gnuplot/plot_reconnect.gp img/GW-reconnect.png
 plot gnuplot/plot_gwfit.gp     img/GW-params-landed.png
+# 文档插图（doc/theory.tex）
+plot doc/fig/fig_stitch.gp  doc/fig/fig_stitch.png
+plot doc/fig/fig_fit.gp     doc/fig/fig_fit.png
+plot doc/fig/fig_keldysh.gp doc/fig/fig_keldysh.png
 
 if [ -n "$SKIPPED" ]; then
     echo "[WARN] 没装 gnuplot，这些图没生成：$SKIPPED" >&2

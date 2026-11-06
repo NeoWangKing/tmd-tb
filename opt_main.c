@@ -63,7 +63,9 @@ static double *kx, *ky;        // TB 单位（1/a）的笛卡尔 k
 static double *gw_ref[3];      // 各带对的目标能量（重连后的物理能带）
 static double *gsorted[3];     // 排序块 9/10/11（仅用于诊断）
 static double *recon;          // GW 重连结果 [NCAND*nk]
-static double *cand_all;       // GW 排序候选块 10..14 [NCAND*nk]
+#if !RECONNECT
+static double *cand_all;       // GW 排序候选块 10..14 [NCAND*nk]（只有不拼接时才用）
+#endif
 static double *mb_raw;         // 模型本征值（排序）[3*nk]
 static double *mb_trk;         // 模型本征值（重连后）[3*nk]
 static int     track_anchor;   // 重连锚点（K 点）
@@ -166,7 +168,9 @@ int main(void)
         for (int c = 0; c < NCAND; ++c)
             memcpy(cand + c * nk, gw.E + (CAND_FIRST - 1 + c) * nk, sizeof(double) * nk);
         recon = malloc(sizeof(double) * NCAND * nk);
+#if !RECONNECT
         cand_all = cand;
+#endif
 
         int anchor = 0;
         for (int i = 1; i < nk; ++i)
