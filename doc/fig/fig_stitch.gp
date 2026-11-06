@@ -38,14 +38,14 @@ set key top right font "Arial,13"
 set dashtype 2 (5,3)
 
 # (a) 正确口径：目标 = 拼接后的物理能带
-set title "(a) 拼接后的物理能带 → 拟合　（残差 CB1 0.038 / CB2 0.024 eV）" font "Arial,14"
+set title "(a) 拼接后的物理能带 → 拟合" font "Arial,14"
 plot DATA using 1:3 w l lc rgb TGT_A lw 3.4 title "拟合目标", \
      DATA using 1:4 w l lc rgb TGT_A lw 3.4 notitle, \
      DATA using 1:9  w l lc rgb FIT_A lw 2.4 dt 2 title "拟合结果", \
      DATA using 1:10 w l lc rgb FIT_A lw 2.4 dt 2 notitle
 
 # (b) 错误口径：目标 = 按能量排序的能带
-set title "(b) 按能量排序的能带 → 拟合　（残差 CB1 0.129 / CB2 0.173 eV）" font "Arial,14"
+set title "(b) 按能量排序的能带 → 拟合" font "Arial,14"
 plot "MoS2-GWBSE-data/wannier90_band.dat" using 1:2 w l dt 3 lc rgb "#dcdcdc" lw 1.0 notitle, \
      DATA using 1:13 w l lc rgb TGT_B lw 3.0 title "拟合目标", \
      DATA using 1:14 w l lc rgb TGT_B lw 3.0 notitle, \
