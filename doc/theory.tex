@@ -68,15 +68,44 @@ HSE06 仍然是密度泛函框架内的杂化泛函，它给出的带隙比准�
 
 \subsection{三个目标与章节对应}
 
-课题开始时定下的三个目标是
+课题开始时定下的三个目标是下面这样。为了不用每次回去翻论文，这里把每条目标
+涉及的主要式子也一并写出来，完整的推导与实现放在后面的对应章节。
 
 \begin{enumerate}
-  \item 实现 GW 能级的三带紧束缚模型。模型结构完全不动，只把参数重新拟合到 GW 能带。
-  \item 实现论文式~(6) 的计算，也就是 Bethe-Salpeter 方程的核。
-  \item 解论文式~(5) 得到激子能级，与 VASP 算好的 BSE 结果对照。
+  \item \textbf{实现 GW 能级的三带紧束缚模型。}
+        模型结构完全不动，只把参数重新拟合到 GW 能带，也就是解
+        \[
+        \min_{\mathbf p}\ \sum_{n,\kk}\big[E_{\mathrm{TB}}(n,\kk;\mathbf p)
+        -E_{\mathrm{GW}}(n,\kk)\big]^2 ,
+        \]
+        其中 $\mathbf p$ 是 19 个参数，即两个原位能、六个 $t$、五个 $r$、六个 $u$。
+        GW 能带与模型本征值都是按能量排序输出的，
+        所以这一步还包含把排序能级接回物理能带，并确定模型的哪条带对哪条物理带。
+
+  \item \textbf{实现论文式~(6) 的 BSE 核}，即
+        \[
+        W^{(d)}_{cv\kk,c'v'\kq}
+        =u(\kk-\kq)\,I^{*}_{c'\kq,c\kk}\,I_{v'\kq,v\kk} .
+        \]
+        它由三块构成。屏蔽库仑势 $u(q)$ 取 Keldysh 形式，
+        需要先定下 $r_0$ 与 $\eps_d$ 两个介电环境参数（第~\ref{sec:keldysh}~节）。
+        轨道交叠 $I_{a\kq,b\kk}=\sum_\alpha C^{a*}_{\alpha\kq}C^{b}_{\alpha\kk}$
+        由本征矢给出（式~\eqref{eq:overlap}），因为 $I$ 不是规范不变量，
+        用之前要先固定本征矢的相位。第三块是 $\kk=\kq$ 处 $u(0)$ 的发散如何处理
+        （式~\eqref{eq:reg}）。
+
+  \item \textbf{解论文式~(5) 的 BSE}，得到激子能级，
+        \[
+        E_{cv\kk}A^{M}_{cv\kk}
+        +\frac{1}{V}\sum_{c'v'\kq}W_{cv\kk,c'v'\kq}A^{M}_{c'v'\kq}
+        =E_{M}A^{M}_{cv\kk},
+        \qquad V=A_cN_k^2 ,
+        \]
+        也就是把一个 $N_k^2N_cN_v$ 维的复厄米矩阵对角化，
+        再把最低的若干条 $E_M$ 与 VASP 的 BSE 本征值（\texttt{BSEEIGS.dat}）对照。
 \end{enumerate}
 
-三条目标与本文章节的对应关系列在表~\ref{tab:goals}，往下读时可以对着它看进度。
+三条目标、章节与完成状态的对应关系列在表~\ref{tab:goals}。
 
 \begin{table}[htbp]
 \centering
@@ -84,14 +113,13 @@ HSE06 仍然是密度泛函框架内的杂化泛函，它给出的带隙比准�
 \label{tab:goals}
 \begin{tabular}{@{}clll@{}}
 \toprule
-目标 & 内容 & 章节 & 状态\\
+目标 & 主要工作 & 章节 & 状态\\
 \midrule
-1 & 重新拟合 19 个参数，得到 GW 能级的三带模型 &
+1 & 重拟合 19 个参数；能带身份与导带配对 &
     \S4、\S5 & 已完成\\
-2 & BSE 核，即论文式~(6)（本文式~\eqref{eq:kernel}）：
-    屏蔽势、轨道交叠、$\qq\to0$ 的正则化 &
+2 & BSE 核：屏蔽势 $u(q)$、轨道交叠 $I$、$q\to0$ 正则化 &
     \S6、\S7.1--\S7.3 & 待完成\\
-3 & 解论文式~(5)（本文式~\eqref{eq:bse}）得激子能级，与 \texttt{BSEEIGS.dat} 对照 &
+3 & 对角化得激子能级，与 \texttt{BSEEIGS.dat} 对照 &
     \S7.4、\S10 & 待完成\\
 \bottomrule
 \end{tabular}
