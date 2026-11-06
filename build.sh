@@ -87,8 +87,14 @@ build_run gwfit    -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
 "$CC" $CFLAGS -o bin/opt_main $LIBSRC opt_main.c -DNNN_MODEL=1 -lm
 ./bin/opt_main > data/opt_report.txt
 
-# 文档插图的数据：把两个表按行并排（gnuplot 只能在一个文件里算列间差）
-awk -f doc/fig/pair.awk data/gw_reconnect.dat data/gw_fit_bands.dat > data/fig_stitch.dat
+# 对照组：不拼接、直接按排序块配对（CB_PICK 0,1），同样的拟合再跑一遍。
+# 输出前缀换成 data/sorted_，不会覆盖上面的主结果。
+"$CC" $CFLAGS -o bin/opt_main_sorted $LIBSRC opt_main.c -DNNN_MODEL=1 \
+    -DRECONNECT=0 -DCB_PICK_A=0 -DCB_PICK_B=1 -DOUT_PREFIX='"data/sorted_"' -lm
+./bin/opt_main_sorted > data/opt_report_sorted.txt
+
+# 文档插图的数据：两个拟合表按行并排（gnuplot 只能在一个文件里算列间差）
+awk -f doc/fig/pair.awk data/gw_fit_bands.dat data/sorted_gw_fit_bands.dat > data/fig_stitch.dat
 
 # ---- 作图 ----
 # 阶段一

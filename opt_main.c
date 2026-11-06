@@ -24,6 +24,12 @@
 
 #define NP 19            // e1,e2 + 6 个 t + 5 个 r + 6 个 u
 
+// 输出文件名前缀。跑对照组（比如不拼接的错误口径）时用 -DOUT_PREFIX 换成别的，
+// 免得把主结果覆盖掉。
+#ifndef OUT_PREFIX
+#define OUT_PREFIX "data/"
+#endif
+
 // 参与拟合的带对：TB 第 TB_PAIR[i] 条 <-> GW 第 GW_PAIR[i] 条
 // 2 条 = 只拟合价带+第一导带；3 条 = 再加上第二条导带
 #define NPAIR 3
@@ -68,7 +74,9 @@ static double *cand_all;       // GW 排序候选块 10..14 [NCAND*nk]（只有�
 #endif
 static double *mb_raw;         // 模型本征值（排序）[3*nk]
 static double *mb_trk;         // 模型本征值（重连后）[3*nk]
+#if RECONNECT
 static int     track_anchor;   // 重连锚点（K 点）
+#endif
 
 static void unpack(const double *p, TB_Params *q)
 {
@@ -175,7 +183,9 @@ int main(void)
         int anchor = 0;
         for (int i = 1; i < nk; ++i)
             if (fabs(gw.k[i] - 1.31633) < fabs(gw.k[anchor] - 1.31633)) anchor = i;
+#if RECONNECT
         track_anchor = anchor;
+#endif
         mb_raw = malloc(sizeof(double) * 3 * nk);
         mb_trk = malloc(sizeof(double) * 3 * nk);
         if (band_track(nk, NCAND, cand, anchor, recon)) {
@@ -202,8 +212,10 @@ int main(void)
         }
         printf("\n");
 
-        // 写出重连结果，供 plot_reconnect.gp 直观检查
-        FILE *fo = fopen("data/gw_reconnect.dat", "w");
+        // 写出重连结果，供 plot_reconnect.gp 直观检查。
+        // RECONNECT=0 的对照组用不到这个文件，不重复写。
+#if RECONNECT
+        FILE *fo = fopen(OUT_PREFIX "gw_reconnect.dat", "w");
         if (fo) {
             fprintf(fo, "# col1: k (Å^-1)\n");
             fprintf(fo, "# col2-%d : 排序块 %d..%d（原始数据）\n", 1 + NCAND, CAND_FIRST, CAND_LAST);
@@ -223,6 +235,7 @@ int main(void)
             }
             fclose(fo);
         }
+#endif
     }
 
 #if RECONNECT
@@ -358,7 +371,7 @@ int main(void)
 
     // 写出参数，方便直接落到 params.h 的 PARAM_SET==2 分支
     {
-        FILE *fp = fopen("data/gw_params.txt", "w");
+        FILE *fp = fopen(OUT_PREFIX "gw_params.txt", "w");
         if (fp) {
             fprintf(fp, "# opt_main.c 拟合出的 GW 参数（可直接粘进 params.h）\n");
             fprintf(fp, "# NPAIR=%d RECONNECT=%d CB_PICK=(%d,%d) RMS=%.4f eV\n",
@@ -382,8 +395,8 @@ int main(void)
         printf("\n");
     }
 
-    FILE *out = fopen("data/gw_fit_bands.dat", "w");
-    if (!out) { fprintf(stderr, "[ERROR] cannot write data/gw_fit_bands.dat\n"); return 1; }
+    FILE *out = fopen(OUT_PREFIX "gw_fit_bands.dat", "w");
+    if (!out) { fprintf(stderr, "[ERROR] cannot write " OUT_PREFIX "gw_fit_bands.dat\n"); return 1; }
     fprintf(out, "# col1: k (Å^-1)\n");
     fprintf(out, "# col2-%d : GW 参考（带 %d/%d/%d）\n", 1+NPAIR, GW_PAIR[0], GW_PAIR[1 % NPAIR], GW_PAIR[2 % NPAIR]);
     fprintf(out, "# col%d-%d : TB 初值（params.h 文献参数）\n", 2+NPAIR, 1+2*NPAIR);
@@ -396,6 +409,6 @@ int main(void)
         fprintf(out, "\n");
     }
     fclose(out);
-    printf("\n已写出 data/gw_fit_bands.dat\n");
+    printf("\n已写出 " OUT_PREFIX "gw_fit_bands.dat\n");
     return 0;
 }
