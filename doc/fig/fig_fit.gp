@@ -32,12 +32,12 @@ set arrow from MX, graph 0 to MX, graph 1 nohead lc rgb "black" lw 0.8 front
 set key top right font "Arial,12"
 set dashtype 2 (5,3)
 
-plot "data/gw_fit_bands.dat" using 1:($2-gw_vbm) w l lc "orange" lw 3   title "GW 参考", \
-     "data/gw_fit_bands.dat" using 1:($3-gw_vbm) w l lc "orange" lw 3   notitle, \
-     "data/gw_fit_bands.dat" using 1:($4-gw_vbm) w l lc "orange" lw 3   notitle, \
-     "data/gw_fit_bands.dat" using 1:($8-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 title "拟合后（RMS 33 meV）", \
-     "data/gw_fit_bands.dat" using 1:($9-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 notitle, \
-     "data/gw_fit_bands.dat" using 1:($10-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 notitle, \
-     "data/gw_fit_bands.dat" using 1:($5-init_vbm) w l lc rgb "#606060" lw 1.8 dt 3 title "上一阶段的模型（初值）", \
+plot "data/gw_fit_bands.dat" using 1:($5-init_vbm) w l lc rgb "#606060" lw 1.8 dt 3 title "初值", \
      "data/gw_fit_bands.dat" using 1:($6-init_vbm) w l lc rgb "#606060" lw 1.8 dt 3 notitle, \
-     "data/gw_fit_bands.dat" using 1:($7-init_vbm) w l lc rgb "#606060" lw 1.8 dt 3 notitle
+     "data/gw_fit_bands.dat" using 1:($7-init_vbm) w l lc rgb "#606060" lw 1.8 dt 3 notitle, \
+     "data/gw_fit_bands.dat" using 1:($2-gw_vbm) w l lc "orange" lw 3 title "拟合目标", \
+     "data/gw_fit_bands.dat" using 1:($3-gw_vbm) w l lc "orange" lw 3 notitle, \
+     "data/gw_fit_bands.dat" using 1:($4-gw_vbm) w l lc "orange" lw 3 notitle, \
+     "data/gw_fit_bands.dat" using 1:($8-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 title "拟合结果", \
+     "data/gw_fit_bands.dat" using 1:($9-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 notitle, \
+     "data/gw_fit_bands.dat" using 1:($10-fit_vbm) w l lc "#1f77b4" lw 2.2 dt 2 notitle
