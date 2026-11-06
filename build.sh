@@ -109,7 +109,6 @@ plot gnuplot/plot_opt.gp       img/GW-fit.png
 plot gnuplot/plot_reconnect.gp img/GW-reconnect.png
 plot gnuplot/plot_gwfit.gp     img/GW-params-landed.png
 # 文档插图（doc/theory.tex）
-plot doc/fig/fig_pbe_gw.gp doc/fig/fig_pbe_gw.png
 plot doc/fig/fig_stitch.gp  doc/fig/fig_stitch.png
 plot doc/fig/fig_fit.gp     doc/fig/fig_fit.png
 plot doc/fig/fig_keldysh.gp doc/fig/fig_keldysh.png
