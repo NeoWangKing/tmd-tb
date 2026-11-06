@@ -290,7 +290,7 @@ f_{\mathrm{loss}}(\mathbf p)=\sum_{n\in\{\mathrm{VB},\mathrm{CB1},\mathrm{CB2}\}
 
 \subsection{初值与优化}
 
-初值取上一篇按 HSE06 拟合得到的那一组，先做一次最优刚性平移。
+初值取上一阶段用的那组文献参数\cite{liu2013}，先做一次最优刚性平移。
 把 $\eps_1$ 与 $\eps_2$ 同时加上常数 $\Delta$ 等价于整条能带上移 $\Delta$，
 因此 $\Delta$ 有闭式解
 \begin{equation}
@@ -345,7 +345,8 @@ GW 的直接带隙为 2.6416~eV，相差 13~meV。
 \centering
 \includegraphics[width=0.82\textwidth]{fig_fit.png}
 \caption{GW 参考能带（橙色）与拟合后的三能带模型（蓝色虚线）。
-灰色点线是文献参数在同样路径上的结果。三条曲线都按各自的价带顶归零。}
+灰色点线是上一阶段那个模型（本次拟合的初值）在同样路径上的结果。
+三条曲线都按各自的价带顶归零。}
 \label{fig:fit}
 \end{figure}
 
