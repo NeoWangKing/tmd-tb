@@ -1,0 +1,7 @@
+# LaTeX 中间产物
+*.aux
+*.log
+*.toc
+*.out
+# 编译出的 PDF 不入库，需要时本地 xelatex 生成
+*.pdf

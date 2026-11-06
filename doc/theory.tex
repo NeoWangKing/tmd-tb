@@ -1,0 +1,695 @@
+% 续写《单层 TMD 材料的三能带紧束缚模型构建》：
+% 三能带模型的 GW 参数拟合、Keldysh 屏蔽势与 Bethe-Salpeter 方程
+% 编译：xelatex theory.tex（中文由 ctex 处理，需要 TeX Live 的 ctex 包）
+\documentclass[11pt,a4paper]{ctexart}
+
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!45!black]{hyperref}
+\geometry{margin=2.6cm}
+
+\newcommand{\kk}{\mathbf{k}}
+\newcommand{\kq}{\mathbf{k}'}
+\newcommand{\qq}{\mathbf{q}}
+\newcommand{\RR}{\mathbf{R}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\ii}{\mathrm{i}}
+
+\title{单层 TMD 三能带紧束缚模型的续篇\\[2mm]
+\large 从 GW 能带重新拟合参数到 GW-BSE 激子}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+上一篇\footnote{《单层 TMD 材料的三能带紧束缚模型构建》，\url{https://ionizing.page/post/tmd-tightbinding/}。}
+从对称性出发建立了单层 TMD 的三能带紧束缚模型，
+并用 HSE06 能带拟合了 19 个参数。
+这一篇接着往下走。拟合目标换成 GW 准粒子能带，
+在拟合好的模型上引入 Keldysh 型二维屏蔽库仑势，
+求解 Bethe-Salpeter 方程得到激子能级，最后与 VASP 的 BSE 结果对照。
+文中给出每一步的公式、本课题采用的数值，以及公式与程序模块的对应关系。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{引子}
+
+\subsection{上一篇停在哪里}
+
+上一篇完成了三能带模型的完整构建。
+它先分析单层 TMD 的 $D_{3h}$ 对称性，
+据此确定 Mo 原子的 $d_{z^2}$，$d_{xy}$，$d_{x^2-y^2}$ 三个轨道构成基组，
+然后由对称性操作把跳跃矩阵的独立参数压缩到 19 个，
+即原位能两个，最近邻六个，次近邻五个，第三近邻六个。
+模型建成之后，用 Julia 的 \texttt{Optim.jl} 把参数拟合到 HSE06 能带，
+$\Gamma$ 谷与 $K$ 谷吻合得相当好，$M$ 谷附近还剩下约 15~meV 的偏差。
+最后一节讨论了模型的适用范围，
+指出三能带近似在 $\Gamma$ 谷附近以及远离 $K/K'$ 的区域会失效。
+
+上一篇的拟合目标是 HSE06 能带。
+HSE06 仍然是密度泛函框架内的杂化泛函，它给出的带隙比准粒子带隙小。
+做激子计算时，这个差别会直接抵消掉一部分束缚能，
+所以本学期的第一步是把目标能带换成 GW 能带，重新拟合同一套参数。
+
+\subsection{本篇要做的三件事}
+
+\begin{enumerate}
+  \item 把 19 个参数重新拟合到 GW 能带，并处理 GW 数据中能带身份的问题；
+  \item 引入描述二维屏蔽的 Keldysh 势，确定其中的介电环境参数；
+  \item 在拟合好的三能带模型上求解 Bethe-Salpeter 方程，得到激子能级，
+        与 VASP 的 BSE 结果（\texttt{BSEEIGS.dat}）对照。
+\end{enumerate}
+
+工作流程是先在单粒子层面把模型修好，再在同一个模型上叠加电子-空穴相互作用。
+这样做的好处是单粒子部分的误差与相互作用部分的误差可以分开检验，
+出了问题能定位到具体环节。
+
+%=====================================================================
+\section{记号与约定}
+
+本篇沿用上一篇的记号，只把用到的部分列在下面，其余的推导见上一篇。
+
+晶格常数记作 $l$，取 $\mathrm{MoS_2}$ 的实验值 $l=3.182164$~\AA{}。
+晶格矢量与倒格子矢量分别为
+\begin{equation}
+\vec{a}=(l,0),\qquad \vec{b}=\left(\frac{l}{2},\frac{\sqrt3}{2}l\right),
+\qquad
+\vec{B}_1=\frac{2\pi}{l}\left(1,-\frac{1}{\sqrt3}\right),\quad
+\vec{B}_2=\frac{2\pi}{l}\left(0,\frac{2}{\sqrt3}\right).
+\end{equation}
+原胞面积为
+\begin{equation}
+A_c=\frac{\sqrt3}{2}l^2=8.770\ \text{\AA}^2 .
+\end{equation}
+
+近邻位点用分数坐标表示，最近邻、次近邻与第三近邻分别是
+\begin{gather}
+R_1=(1,0),\ R_2=(0,1),\ R_3=(-1,1),\ R_4=(-1,0),\ R_5=(0,-1),\ R_6=(1,-1),\\
+\tilde{R}_1=(1,1),\ \tilde{R}_2=(-1,2),\ \tilde{R}_3=(-2,1),\
+\tilde{R}_4=(-1,-1),\ \tilde{R}_5=(1,-2),\ \tilde{R}_6=(2,-1),\\
+2R_1=(2,0),\ 2R_2=(0,2),\ 2R_3=(-2,2),\
+2R_4=(-2,0),\ 2R_5=(0,-2),\ 2R_6=(2,-2).
+\end{gather}
+
+基组记作 $|\phi_1\rangle=d_{z^2}$，$|\phi_2\rangle=d_{xy}$，$|\phi_3\rangle=d_{x^2-y^2}$，
+Bloch 哈密顿量写成
+\begin{equation}
+H_{ij}(\kk)=\sum_{\RR}e^{\ii\kk\cdot\RR}E_{ij}(\RR),
+\qquad
+E_{ij}(\RR)=\langle\phi_i(\mathbf r)|\hat H|\phi_j(\mathbf r-\RR)\rangle ,
+\label{eq:hk}
+\end{equation}
+$\RR$ 取遍三组近邻位点。
+跳跃矩阵满足 $E_{ij}(\RR)=E_{ji}(-\RR)^*$，因此给出半数的矩阵就够，
+另一半由厄米性得到。同一组近邻内部的矩阵由点群对称操作生成
+\begin{equation}
+E(\hat g\RR)=D(\hat g)E(\RR)\left[D(\hat g)\right]^{\dagger}.
+\label{eq:sym}
+\end{equation}
+
+三组跳跃矩阵的简化结果直接引用上一篇，这里只列出本篇要用的形式
+\begin{equation}
+E(R_1)=
+\begin{pmatrix}
+t_{11} & t_{12} & t_{13}\\
+-t_{12} & t_{22} & t_{23}\\
+t_{13} & -t_{23} & t_{33}
+\end{pmatrix},\quad
+E(\tilde{R}_1)=
+\begin{pmatrix}
+r_{11} & r_{12} & -\dfrac{r_{12}}{\sqrt3}\\[1.5mm]
+r_{21} & r_{22} & r_{23}\\[1.5mm]
+-\dfrac{r_{21}}{\sqrt3} & r_{23} & r_{22}+\dfrac{2r_{23}}{\sqrt3}
+\end{pmatrix},\quad
+E(2R_1)=
+\begin{pmatrix}
+u_{11} & u_{12} & u_{13}\\
+-u_{12} & u_{22} & u_{23}\\
+u_{13} & -u_{23} & u_{33}
+\end{pmatrix}.
+\label{eq:hop}
+\end{equation}
+原位项为 $\operatorname{diag}(\eps_1,\eps_2,\eps_2)$，
+$\eps_2$ 的简并来自 $d_{xy}$ 与 $d_{x^2-y^2}$ 在 $C_{3v}$ 下的等价性。
+自旋轨道耦合沿用上一篇的结果
+\begin{equation}
+H^{\mathrm{SOC}}=\lambda S_z\otimes L_z ,
+\qquad
+L_z=
+\begin{pmatrix}
+0&0&0\\
+0&0&-2\ii\\
+0&2\ii&0
+\end{pmatrix},
+\label{eq:soc}
+\end{equation}
+$S_z=\frac12\sigma_z$，$\mathrm{MoS_2}$ 取 $\lambda=0.073$~eV。
+
+关于单位，全篇能量用 eV，长度用 \AA{}，波矢用 \AA$^{-1}$。
+程序里 $l$ 记作 \texttt{A\_ANG}，$\eps_{1,2}$ 记作 \texttt{e1}、\texttt{e2}，
+$\kk$ 以 $1/l$ 为单位并省掉了 $l$。
+式~\eqref{eq:hk}~中的相位因子在代码里写成 $e^{-\ii\kk\cdot\RR}$，
+与上面的写法互为复共轭，本征值相同。
+
+%=====================================================================
+\section{为什么把拟合目标换成 GW 能带}
+
+激子能量由两部分构成，单粒子跃迁能与电子-空穴相互作用。
+Tamm-Dancoff 近似下的 BSE 本征值可以粗略理解为
+\begin{equation}
+E_M\approx E_{\mathrm{gap}}-E_b ,
+\end{equation}
+$E_{\mathrm{gap}}$ 是单粒子带隙，$E_b$ 是束缚能。
+带隙取小了，束缚能会被同步低估，两者互相抵消，
+算出来的激子峰位反而可能碰巧接近实验值。
+这种巧合没有预测能力，所以激子计算里的单粒子能量应当用准粒子能量。
+
+拿 $\mathrm{MoS_2}$ 的数据看这个差别有多大。
+PBE 给出的带隙是 1.675~eV，GW 给出 2.642~eV，相差 0.967~eV。
+而 A 激子的束缚能只有 0.4~eV 左右，两者同量级。
+用 PBE 能带做 BSE，等于用一个偏小一整个束缚能的带隙去算。
+HSE06 介于两者之间，仍然不够。
+
+上一篇的 HSE06 拟合在 $M$ 谷附近留下约 15~meV 的残差。
+换成 GW 之后残差会变大，原因在模型的局限。
+GW 修正对不同谷、不同能带并不均匀，而三能带模型只有一个全局参数集。
+这部分误差无法靠调参消除，只能记录下来，
+作为后面比较激子能量时的系统偏差。
+
+%=====================================================================
+\section{GW 参考能带与能带身份}
+
+\subsection{数据}
+
+参考数据由 Wannier90 输出，文件为 \texttt{wannier90\_band.dat}。
+它包含沿 $\Gamma$-K-M-$\Gamma$ 路径上 285 个 $k$ 点的 17 条能带，
+$k$ 点与 \texttt{wannier90\_band.kpt} 一一对应，
+路径上的高对称点位置为
+$\Gamma=0$，$K=1.31633$，$M=1.97450$，$\Gamma=3.11448$~\AA$^{-1}$。
+能量的零点取 DFT 的费米能级。
+
+参与拟合的是价带顶那一条与最低的两条导带。
+价带顶对应第 9 条带，两条导带对应第 10 条与第 11 条附近的能级。
+这些序号只能在 $K$ 点附近直接使用，原因见下一小节。
+
+\subsection{排序本征值带来的问题}
+
+Wannier90 在每个 $k$ 点按能量从小到大输出能级。
+两条物理能带交叉时，输出结果的序号会互换，一条曲线走的是另一条物理能带。
+把这样的数据直接画出来，交叉处是两个互相弹开的折线，
+而不是两条交叉的直线。
+三能带模型自身的本征值来自数值对角化，同样按能量排序，两侧都有这个问题。
+
+如果按输出的序号直接配对，交叉点附近会出现虚假的大残差。
+本课题最初的拟合就吃过这个亏。
+不拼接、直接按序号配对时，均方根偏差停在 0.055~eV，而且残差曲线在交叉处出现折点。
+拼接之后若仍按序号配到物理带 2，偏差反而涨到 0.074~eV。
+改成物理带 1 与物理带 3 的配对，才降到 0.033~eV。
+
+\subsection{最小曲率拼接}
+
+解决办法是先把按能量排序的能级接回物理能带，再谈配对。
+判据取最小曲率。
+从 $K$ 点出发向两侧逐点走，$K$ 点各带分得最开、顺序没有歧义，可以作为锚点。
+每走一步，用前两步的位置线性外推得到各带的预测位置
+\begin{equation}
+\tilde{E}_b(\kk_i)=2E_b(\kk_{i-1})-E_b(\kk_{i-2}),
+\end{equation}
+然后在当前 $k$ 点候选能级的全部排列中，选一个使总距离平方和最小的分配
+\begin{equation}
+\min_{\sigma}\sum_b\left[E_{\sigma(b)}(\kk_i)-\tilde{E}_b(\kk_i)\right]^2 .
+\end{equation}
+对光滑能带来说，这个判据等价于让拼接后的曲线尽量不弯，
+交叉点处能把身份接回去。
+实现上就是枚举排列，候选能级的个数最多 8 个，代价可以忽略。
+
+拼接之后，原本两条互相弹开的折线变成两条交叉的曲线。
+用二阶差分平方和衡量粗糙度，参考能带在拼接前后从 0.027 降到 0.015。
+
+\subsection{导带配对}
+
+拼接解决的是哪条是哪条，还剩下模型带对哪条物理带。
+模型的两条导带在 $\Gamma$ 点严格简并，因为 $\eps_2$ 本身是二重简并的。
+GW 数据里在 $\Gamma$ 点也简并的那两条物理带是拼接后的物理带 1 与物理带 3，
+两者在 $\Gamma$ 点都是 2.2049~eV。
+物理带 2 在 $\Gamma$ 点是 2.0331~eV，
+来自 S 的 $p$ 轨道参与构成的另一条分支，不在三能带模型的基组内。
+因此导带配对取物理带 1 与物理带 3，
+模型带 2 对物理带 1，模型带 3 对物理带 3。
+
+这个判断有独立的依据。
+$K$ 谷附近模型的第二条导带能量较高。
+以 $K$ 点为例，模型给出 2.990~eV，GW 的物理带 2 是 2.419~eV，相差 0.57~eV；
+物理带 3 是 2.974~eV，只差 16~meV。
+若强行配物理带 2，拟合残差会增大到 0.07~eV 以上。
+
+%=====================================================================
+\section{在 GW 能带上重新拟合参数}
+
+\subsection{损失函数}
+
+损失函数沿用上一篇的形式，只把目标能带换成 GW 能带
+\begin{equation}
+f_{\mathrm{loss}}(\mathbf p)=\sum_{n\in\{\mathrm{VB},\mathrm{CB1},\mathrm{CB2}\}}\sum_{\kk}
+\left[E_{\mathrm{TB}}(n,\kk;\mathbf p)-E_{\mathrm{GW}}(n,\kk)\right]^2 .
+\label{eq:loss}
+\end{equation}
+两侧的能带都先经过第 4.3 节的拼接处理。
+权重取均匀权重，不按能量加权，
+理由是带边附近的绝对误差才是后面 BSE 关心的量。
+
+参数向量 $\mathbf p$ 含 19 个分量，
+分别是 $\eps_1$，$\eps_2$，六个 $t$，五个 $r$，六个 $u$。
+
+\subsection{初值与优化}
+
+初值取上一篇按 HSE06 拟合得到的那一组，先做一次最优刚性平移。
+把 $\eps_1$ 与 $\eps_2$ 同时加上常数 $\Delta$ 等价于整条能带上移 $\Delta$，
+因此 $\Delta$ 有闭式解
+\begin{equation}
+\Delta=\frac{1}{3N_k}\sum_{n,\kk}\left[E_{\mathrm{GW}}(n,\kk)-E_{\mathrm{TB}}(n,\kk)\right],
+\end{equation}
+不必交给优化器去爬。
+这一步在本次计算里给出 $\Delta=-0.987$~eV，
+它吸收的是两套能量零点之间的整体偏移。
+带隙的张开不靠这一步，由后面的迭代调整 $\eps_1$ 与 $\eps_2$ 的差以及各跳跃项来完成。
+
+优化采用逐参数扫描配合步长减半。
+每一轮对 19 个参数依次尝试 $\pm\delta_j$，接受使损失函数下降的方向；
+一轮结束后若没有改进，把所有步长减半，
+直到最大步长小于 $10^{-6}$~eV。
+上一篇用 Julia 的 Nelder-Mead 加 BFGS，本篇换成这种不依赖梯度的方法，
+目的是把整个计算放进 C 程序里，不引入外部优化库。
+代价是收敛慢一些，第 1 轮之后损失函数下降得就不多了。
+
+\subsection{结果}
+
+拟合后的均方根偏差为 0.0334~eV，
+分带为价带 0.0356~eV，第一导带 0.0385~eV，第二导带 0.0242~eV。
+高对称点上的残差都在 $\pm0.04$~eV 以内。
+作为对照，上一篇的 HSE06 拟合在 $M$ 谷附近约 15~meV，本篇的残差更大。
+原因在第 3 节已经说明，GW 修正不均匀，三能带模型吸收不了。
+
+\begin{table}[htbp]
+\centering
+\caption{拟合到 GW 能带的三能带模型参数（单位 eV）。}
+\label{tab:params}
+\begin{tabular}{@{}ll@{}}
+\toprule
+原位能 & $\eps_1=-0.669051$,\quad $\eps_2=+0.909859$\\
+\midrule
+最近邻 & $t_{11}=-0.236031$,\ $t_{12}=+0.215955$,\ $t_{13}=-0.667015$,\\
+       & $t_{22}=+0.081873$,\ $t_{23}=+0.201256$,\ $t_{33}=+0.092394$\\
+次近邻 & $r_{11}=+0.124235$,\ $r_{12}=+0.292944$,\ $r_{21}=-0.136325$,\\
+       & $r_{22}=-0.038118$,\ $r_{23}=+0.147411$\\
+第三近邻 & $u_{11}=-0.079896$,\ $u_{12}=-0.123351$,\ $u_{13}=+0.034764$,\\
+       & $u_{22}=+0.365806$,\ $u_{23}=-0.243409$,\ $u_{33}=-0.198801$\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+这组参数是在绝对 GW 能量上得到的，$\eps_1$ 与 $\eps_2$ 含整体偏移，
+不能与上一篇按 HSE06 拟合的那组直接比较。
+可比的是带隙。
+拟合后的模型在 $K$ 点的带隙为 2.6548~eV，
+GW 的直接带隙为 2.6416~eV，相差 13~meV。
+这个差值会整体平移到后面所有的激子能级上。
+
+%=====================================================================
+\section{介电屏蔽与 Keldysh 势}
+\label{sec:keldysh}
+
+\subsection{二维体系的屏蔽}
+
+三维体系的库仑势在动量空间是 $1/q^2$ 型。
+单层材料的电场线可以穿出单层进入真空或衬底，屏蔽被削弱，
+动量空间的相互作用在长波极限变成 $1/q$ 型，实空间则是对数型发散。
+Keldysh 在研究薄金属膜时给出了这类势\cite{keldysh1979}，
+Cudazzo 等人把它用到二维材料上\cite{cudazzo2011}。
+动量空间的形式为
+\begin{equation}
+u(q)=-\frac{e^2}{2\eps_0\eps_d\,q\,\kappa(q)},
+\qquad \kappa(q)=1+r_0q ,
+\label{eq:keldysh}
+\end{equation}
+$r_0$ 是二维极化率对应的长度尺度，$\eps_d$ 是环境介电常数。
+$q\to0$ 时 $\kappa\to1$，相互作用按 $1/q$ 发散。
+这个发散是可积的，离散求和里却必须处理，见第~\ref{sec:reg}~节。
+
+\subsection{\texorpdfstring{参数 $r_0$ 与介电环境}{参数 r0 与介电环境}}
+
+设单层位于介电常数为 $\eps_1$ 的上方介质与 $\eps_3$ 的下方介质之间，
+单层本身的等效厚度为 $d$、等效介电常数为 $\eps_2$。
+有限厚度模型的解析结果为\cite{zhang2014}
+\begin{equation}
+r_0=\frac{2\eps_2^2-\eps_1^2-\eps_3^2}{2\eps_2(\eps_1+\eps_3)}\,d ,
+\qquad
+\eps_d=\frac{\eps_1+\eps_3}{2}.
+\label{eq:r0}
+\end{equation}
+文献\cite{ridolfi2018}针对空气与二氧化硅的界面取
+$\eps_1=1$，$\eps_3=4$，$\eps_2=12$，$d=6$~\AA{}，得到
+\begin{equation}
+\eps_d=2.5,\qquad r_0=13.55\ \text{\AA},\qquad \frac{2\pi r_0}{l}\approx 26.8 .
+\end{equation}
+这一组数对应 air/SiO$_2$ 环境。
+作为对比基准的 VASP BSE 若用了别的介电环境，
+$\eps_d$ 与 $r_0$ 需要按式~\eqref{eq:r0}~相应替换。
+
+换到 eV 与 \AA{} 单位，取 $e^2/(4\pi\eps_0)=14.3996$~eV\AA{}，
+式~\eqref{eq:keldysh}~写成
+\begin{equation}
+u(q)=-\frac{90.47}{\eps_d\,q\,(1+r_0q)}\ \text{eV}\,\text{\AA}^2
+\qquad (q\ \text{以 \AA}^{-1}\ \text{为单位}).
+\label{eq:keldysh_num}
+\end{equation}
+
+\subsection{实空间形式}
+
+把式~\eqref{eq:keldysh}~作二维傅里叶变换，得到
+\begin{equation}
+u(r)=-\frac{e^2}{8\eps_0\eps_d r_0}
+\left[H_0\!\left(\frac{r}{r_0}\right)-Y_0\!\left(\frac{r}{r_0}\right)\right],
+\label{eq:keldysh_r}
+\end{equation}
+$H_0$ 与 $Y_0$ 分别是 Struve 函数与第二类 Bessel 函数。
+$r\gg r_0$ 时 $u(r)\propto1/r$，$r\ll r_0$ 时按 $\log r$ 发散。
+求解 BSE 时全程在动量空间使用式~\eqref{eq:keldysh}，
+式~\eqref{eq:keldysh_r}~只用来核对量纲与长程行为。
+
+%=====================================================================
+\section{Bethe-Salpeter 方程}
+\label{sec:bse}
+
+\subsection{激子态与 Tamm-Dancoff 近似}
+
+讨论质心动量为零的激子，这类激子才是光学亮态。
+在单粒子激发的基础上展开激子态
+\begin{equation}
+|M\rangle=\sum_{c,v,\kk}A^{M}_{cv\kk}\,|v\kk\to c\kk\rangle ,
+\label{eq:basis}
+\end{equation}
+$A^{M}_{cv\kk}$ 是激子波函数在电子-空穴对基上的分量。
+把式~\eqref{eq:basis}~代入含多体库仑作用的薛定谔方程，
+在 Tamm-Dancoff 近似下得到本征方程\cite{ridolfi2018,rohlfing2000}
+\begin{equation}
+E_{cv\kk}A^{M}_{cv\kk}
++\frac{1}{V}\sum_{c'v'\kq}W_{cv\kk,c'v'\kq}A^{M}_{c'v'\kq}
+=E_M A^{M}_{cv\kk},
+\label{eq:bse}
+\end{equation}
+其中 $E_{cv\kk}=\eps_{c\kk}-\eps_{v\kk}$ 是单粒子跃迁能，
+$V=A_cN_k^2$ 是晶体总面积，$N_k^2$ 是布里渊区内的 $k$ 点总数。
+
+TDA 下的矩阵元包含直接项与交换项。
+在正交基组、且库仑作用与轨道成分无关的近似下，
+交换项对零动量激子不贡献，只剩直接项\cite{ridolfi2018}
+\begin{equation}
+W^{(d)}_{cv\kk,c'v'\kq}=u(\kk-\kq)\,I^{*}_{c'\kq,c\kk}\,I_{v'\kq,v\kk},
+\label{eq:kernel}
+\end{equation}
+$u$ 取第~\ref{sec:keldysh}~节的屏蔽势。
+$I$ 是两个 Bloch 态之间的轨道交叠，由式~\eqref{eq:hk}~的展开系数给出
+\begin{equation}
+I_{a\kq,b\kk}=\sum_{\alpha}C^{a*}_{\alpha\kq}\,C^{b}_{\alpha\kk},
+\label{eq:overlap}
+\end{equation}
+$C^{a}_{\alpha\kk}$ 是第 $a$ 条能带在轨道 $\alpha$ 上的分量，即 $H(\kk)$ 的本征矢。
+
+式~\eqref{eq:kernel}~保留了三能带模型的轨道结构。
+把相互作用当成纯库仑问题、忽略 $I$，等于假设所有跃迁的轨道交叠都等于 1，
+那样得到的激子能量会偏高。
+
+\subsection{规范固定}
+
+交叠积分 $I$ 不是规范不变量。
+本征矢可以乘上任意的相位因子
+$C^{n}_{\alpha\kk}\to e^{\ii\phi_{n\kk}}C^{n}_{\alpha\kk}$，
+$I_{a\kq,b\kk}$ 随之多出 $e^{\ii(\phi_{a\kq}-\phi_{b\kk})}$，核也跟着变。
+数值对角化给出的本征矢相位是任意的，必须固定。
+
+采用文献\cite{ridolfi2018}的约定，要求波函数在基组上的分量之和为实数
+\begin{equation}
+\sum_{\alpha}C^{n}_{\alpha\kk}\in\mathbb{R}.
+\label{eq:gauge}
+\end{equation}
+操作时先算 $S_n=\sum_\alpha C^n_{\alpha\kk}$，
+再把整条能带的系数乘以 $e^{-\ii\arg S_n}$，
+并取 $\sum_\alpha C^n_{\alpha\kk}>0$。
+若 $S_n$ 接近零，这一步的不确定性最大，
+此时改用相邻 $k$ 点的本征矢做平行移动来确定相位。
+
+能带在某个 $k$ 点严格简并时，简并子空间内的基矢本身是任意的，
+式~\eqref{eq:gauge}~消除不了这部分自由度。
+$\Gamma$ 点的两条导带正是这种情况。
+简并点对 $K$ 谷附近 A 激子的权重很小，影响要靠数值实验估计。
+
+\subsection{库仑奇点的正则化}
+\label{sec:reg}
+
+式~\eqref{eq:bse}~的求和包含 $\kq=\kk$ 的对角项，此时 $\qq=0$，
+式~\eqref{eq:keldysh}~发散。
+这个发散在热力学极限下可积，离散求和里必须替换成有限值。
+做法是把 $u(0)$ 换成它在小区域上的平均值
+\begin{equation}
+u(\qq\approx0)\;\longrightarrow\;\frac{1}{\Delta q}\int_{\Delta q}u(\qq)\,\dd\qq ,
+\label{eq:reg}
+\end{equation}
+积分区域取边长为 $2\pi/(lN_k)$ 的正方形，也就是每个 $k$ 点代表的面积元。
+
+文献\cite{ridolfi2018}进一步把这个平均值写成解析近似
+\begin{equation}
+u(\qq\approx0)\approx\frac{c\,lN_k}{2\pi}
+\left[\alpha_1+\alpha_2\frac{2\pi r_0}{lN_k}+\alpha_3\left(\frac{2\pi r_0}{lN_k}\right)^2\right],
+\end{equation}
+系数 $\alpha_i$ 由 $q=0$ 在积分区域中的位置决定。
+$\alpha_1=1,\alpha_{2,3}=0$ 对应把 $1/\kappa(q)$ 提到积分号外面，收敛最慢。
+把 $q=0$ 放在正方形中心的方案（文献中的 \#11）与放在角上的方案（\#2）收敛都快得多。
+本课题直接对式~\eqref{eq:reg}~做数值积分，不引入额外的拟合系数。
+
+$2\pi r_0/l\approx26.8$ 这个数说明了问题的难点。
+它和实际能取到的 $N_k$ 同量级，意味着正则化方案会明显影响收敛速度。
+判断实现是否正确，看的是最低本征值随 $N_k$ 的行为，
+而不是单个 $N_k$ 下的数值。
+
+\subsection{数值实现}
+
+$k$ 网格取第一布里渊区内的均匀采样
+\begin{equation}
+\kk_{ij}=\frac{i}{N_k}\vec{B}_1+\frac{j}{N_k}\vec{B}_2,
+\qquad i,j=0,1,\dots,N_k-1 ,
+\end{equation}
+$\Gamma$ 点在原点。
+求和只保留第一布里渊区内的波矢，即忽略倒格矢 $Q\ne0$ 的矩阵元。
+激子波函数局域在 $K$ 点附近时，这个截断对低能激子的影响可以接受\cite{ridolfi2018}。
+
+矩阵的维数为 $N_{\mathrm{tot}}=N_k^2N_cN_v$。
+本课题的模型取 $N_v=1$、$N_c=2$，故 $N_{\mathrm{tot}}=2N_k^2$。
+式~\eqref{eq:bse}~写成矩阵形式
+\begin{equation}
+\mathcal{H}\mathbf A=E\mathbf A,
+\qquad
+\mathcal{H}_{(c\kk),(c'\kq)}
+=\delta_{cc'}\delta_{\kk\kq}E_{cv\kk}
++\frac{1}{A_cN_k^2}u(\kk-\kq)I^{*}_{c'\kq,c\kk}I_{v'\kq,v\kk}.
+\label{eq:bse_matrix}
+\end{equation}
+由 $I_{a\kq,b\kk}=I^{*}_{b\kk,a\kq}$ 可以验证 $\mathcal{H}$ 是厄米矩阵。
+本征矢一般带复相位，矩阵是复厄米矩阵，需要稠密对角化。
+程序里没有依赖 LAPACK，对角化自行实现，
+思路与三能带模型的 Jacobi 求解一致。
+
+\begin{table}[htbp]
+\centering
+\caption{$k$ 网格与 BSE 矩阵规模（$N_c=2$，$N_v=1$），内存按复双精度估计。}
+\label{tab:size}
+\begin{tabular}{rrrr}
+\toprule
+$N_k$ & $k$ 点数 & 矩阵阶数 & 内存\\
+\midrule
+12 & 144 & 288 & 1.3 MB\\
+18 & 324 & 648 & 6.7 MB\\
+24 & 576 & 1152 & 21 MB\\
+30 & 900 & 1800 & 52 MB\\
+36 & 1296 & 2592 & 107 MB\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+文献\cite{ridolfi2018}取 $N_k=60$，$N_c=8$，$N_v=2$，矩阵阶数为 $5.76\times10^4$。
+本课题的带数少，同样的 $N_k$ 下阶数小两个数量级。
+
+%=====================================================================
+\section{光学响应}
+
+有了本征值与本征矢，线性电导率由费米黄金规则给出
+\begin{equation}
+\operatorname{Re}\sigma(\omega)=\frac{e^2\pi}{m^2\hbar\omega V}
+\sum_M\left|\langle\mathrm{FS}|\hat P_x|M\rangle\right|^2
+\delta(\omega-\omega_M),
+\label{eq:sigma}
+\end{equation}
+$\mathrm{FS}$ 是基态，$\hat P_x$ 是总动量算符的 $x$ 分量。
+把式~\eqref{eq:basis}~代入，并利用单粒子矩阵元与速度算符的关系
+\begin{equation}
+\langle\mathrm{FS}|\hat P_x a^\dagger_{c\kk}a_{v\kk}|\mathrm{FS}\rangle
+=\langle\psi_{v\kk}|\hat p_x|\psi_{c\kk}\rangle
+=\frac{m}{\hbar}\langle\psi_{v\kk}|\nabla_{k_x}\hat H(\kk)|\psi_{c\kk}\rangle ,
+\label{eq:velocity}
+\end{equation}
+电导率写成
+\begin{equation}
+\operatorname{Re}\sigma(\omega)=\frac{e^2}{4\hbar}\frac{4\pi}{\hbar\omega V}
+\sum_M\left|
+\sum_{cv\kk}A^{M}_{cv\kk}
+\sum_{\alpha\beta}C^{v*}_{\alpha\kk}C^{c}_{\beta\kk}
+\langle\phi_\alpha|\nabla_{k_x}\hat H(\kk)|\phi_\beta\rangle
+\right|^2\delta(\hbar\omega-\hbar\omega_M).
+\label{eq:sigma_explicit}
+\end{equation}
+速度矩阵元由哈密顿量对 $k$ 的解析导数给出，不需要数值差分。
+式~\eqref{eq:sigma_explicit}~同时给出每个激子态的振子强度，
+这是判断亮态与暗态的依据。
+
+本篇的对比目标是激子能级，第~\ref{sec:bse}~节的本征值已经够用。
+式~\eqref{eq:sigma_explicit}~留作下一步，用于把计算谱与实验吸收谱对照。
+
+%=====================================================================
+\section{理论公式与程序的对应}
+
+表~\ref{tab:map}~列出各部分公式在程序中的位置。
+单粒子部分已经实现，BSE 部分正在实现。
+
+\begin{table}[htbp]
+\centering
+\caption{公式与程序模块的对应关系。}
+\label{tab:map}
+\begin{tabular}{lll}
+\toprule
+内容 & 公式 & 程序位置\\
+\midrule
+Bloch 哈密顿量 & 式~\eqref{eq:hk} & \texttt{src/tb.c: tb\_build\_Hk}\\
+跳跃矩阵与对称性 & 式~\eqref{eq:sym},~\eqref{eq:hop} & \texttt{src/tb.c: generate\_hopping\_matrices\_*}\\
+自旋轨道耦合 & 式~\eqref{eq:soc} & \texttt{src/tb.c: tb\_eig\_soc}\\
+本征值与本征矢 & & \texttt{src/herm3.c: herm3\_jacobi}\\
+能带拼接 & 第 4.3 节 & \texttt{src/bandtrack.c: band\_track}\\
+参数拟合 & 式~\eqref{eq:loss} & \texttt{opt\_main.c}\\
+屏蔽势 & 式~\eqref{eq:keldysh_num} & 待实现\\
+交叠积分与规范固定 & 式~\eqref{eq:overlap},~\eqref{eq:gauge} & 待实现\\
+BSE 矩阵 & 式~\eqref{eq:bse_matrix} & 待实现\\
+库仑奇点正则化 & 式~\eqref{eq:reg} & 待实现\\
+光学响应 & 式~\eqref{eq:sigma_explicit} & 待实现\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%=====================================================================
+\section{收敛性与误差来源}
+
+判断实现是否正确，除了核对公式，还要看几个可以独立验证的极限。
+
+\paragraph{无相互作用极限}
+把 $u$ 置零后，式~\eqref{eq:bse_matrix}~退化为对角矩阵，
+本征值应当精确等于单粒子跃迁能 $\eps_{c\kk}-\eps_{v\kk}$ 的集合。
+这是验证矩阵装配与索引映射最直接的方法。
+
+\paragraph{谷简并}
+无 SOC 时 $K$ 与 $K'$ 完全对称，最低激子应当是二重简并的。
+VASP 的 BSE 结果同样给出成对的简并本征值，前两条相差不到 $10^{-8}$~eV，
+可以拿来对照。
+
+\paragraph{网格收敛}
+最低激子能量随 $N_k$ 的变化应当单调趋于稳定值。
+正则化方案决定收敛速度，$2\pi r_0/l\approx26.8$ 意味着 $N_k$ 只有几十时，
+$q\to0$ 附近的处理仍在显著影响结果。
+判断收敛的依据是相邻 $N_k$ 之间的差值，而非绝对精度。
+
+\paragraph{误差来源}
+拟合给出的带隙比 GW 小 13~meV，这一项整体平移到所有激子能级上。
+三能带模型缺少 S、$p$ 导出的那条分支，对高能激子的影响比对最低激子大。
+忽略 $Q\ne0$ 的矩阵元会系统性影响束缚能，
+文献\cite{ridolfi2018}把采样域取成第一布里渊区，以保证这部分可以忽略。
+简并点附近的规范不唯一会带来不可控的小扰动，
+可以通过改变锚点或相位约定估计其量级。
+
+%=====================================================================
+\section{小结}
+
+这一篇把上一篇的三能带模型推到了激子层面。
+单粒子部分换成 GW 准粒子能带重新拟合，
+19 个参数在 285 个 $k$ 点上的均方根偏差为 33~meV，
+$K$ 点带隙 2.6548~eV 与 GW 的 2.6416~eV 相差 13~meV。
+相互作用部分引入 Keldysh 型二维屏蔽势，
+环境取 air/SiO$_2$，给出 $\eps_d=2.5$、$r_0=13.55$~\AA{}。
+激子用 TDA 下的 BSE 求解，核保留直接项与轨道交叠，
+规范按分量之和为实数固定，$q\to0$ 的奇点用小区间平均正则化。
+
+剩下的工作是数值实现与对照。
+判断结果是否可信，先看无相互作用极限与谷简并这两个必要条件，
+再看最低激子随 $N_k$ 的收敛。
+
+%=====================================================================
+\begin{thebibliography}{99}
+
+\bibitem{ridolfi2018}
+M.~Ridolfi, C.~Lewenkopf, and V.~M.~Pereira,
+Excitonic structure of the optical conductivity in MoS$_2$ monolayers,
+Phys. Rev. B \textbf{97}, 205409 (2018).
+
+\bibitem{liu2013}
+G.-B.~Liu, W.-Y.~Shan, Y.~Yao, W.~Yao, and D.~Xiao,
+Three-band tight-binding model for monolayers of group-VIB transition metal dichalcogenides,
+Phys. Rev. B \textbf{88}, 085433 (2013).
+
+\bibitem{rohlfing2000}
+M.~Rohlfing and S.~G.~Louie,
+Electron-hole excitations and optical spectra from first principles,
+Phys. Rev. B \textbf{62}, 4927 (2000).
+
+\bibitem{keldysh1979}
+L.~V.~Keldysh,
+Coulomb interaction in thin semiconductor and semimetal films,
+JETP Lett. \textbf{29}, 658 (1979).
+
+\bibitem{cudazzo2011}
+P.~Cudazzo, I.~V.~Tokatly, and A.~Rubio,
+Dielectric screening in two-dimensional insulators,
+Phys. Rev. B \textbf{84}, 085406 (2011).
+
+\bibitem{zhang2014}
+C.~Zhang, A.~Johnson, C.-L.~Hsu, L.-J.~Li, and C.-K.~Shih,
+Direct imaging of four-particle states in monolayer MoS$_2$,
+Nano Lett. \textbf{14}, 2443 (2014).
+
+\bibitem{berkelbach2013}
+T.~C.~Berkelbach, M.~S.~Hybertsen, and D.~R.~Reichman,
+Theory of neutral and charged excitons in monolayer transition metal dichalcogenides,
+Phys. Rev. B \textbf{88}, 045318 (2013).
+
+\bibitem{wu2015}
+F.~Wu, F.~Qu, and A.~H.~MacDonald,
+Exciton band structure of monolayer MoS$_2$,
+Phys. Rev. B \textbf{91}, 075310 (2015).
+
+\bibitem{li2014}
+Y.~Li, A.~Chernikov, X.~Zhang, A.~Rigosi, H.~M.~Hill, A.~M.~van der Zande,
+D.~A.~Chenet, E.-M.~Shih, J.~Hone, and T.~F.~Heinz,
+Measurement of the optical dielectric function of monolayer transition-metal dichalcogenides,
+Phys. Rev. B \textbf{90}, 205422 (2014).
+
+\bibitem{qiu2013}
+D.~Y.~Qiu, F.~H.~da Jornada, and S.~G.~Louie,
+Optical spectrum of MoS$_2$: Many-body effects and diversity of exciton states,
+Phys. Rev. Lett. \textbf{111}, 216805 (2013).
+
+\end{thebibliography}
+
+\end{document}
