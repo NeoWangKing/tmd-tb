@@ -1,6 +1,8 @@
 #ifndef STRAP_H_
 #define STRAP_H_
 
+#include <stddef.h>
+
 // 能带数据表的读写、排序与最小曲率拼接。
 //
 // 数据模型：一条带就是一串 (横坐标, 纵坐标) 点。能带表里横坐标是 k、纵坐标是能量，
