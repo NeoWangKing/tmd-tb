@@ -13,6 +13,7 @@ PhysRevB.97.205409.pdf
 reference/*.tex
 reference/*.pdf
 reference/figs/
+reference/presentation1/
 reference/*.aux
 reference/*.log
 reference/*.out
