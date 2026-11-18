@@ -2,7 +2,7 @@
 # 输出模式：0 = 弹出 Qt 窗口；1 = 写成 PNG 文件
 # ---------------------------------------------------------------------------
 if (!exists("MODE")) MODE = 1
-OUTFILE = "img/TB-NN-NNN-TNN-SOC.png"
+OUTFILE = "img/TB/NN-NNN-TNN.png"
 # pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
 if (!exists("GTERM")) GTERM = "pngcairo"
 
@@ -27,14 +27,14 @@ K  = map(1.244017)
 Mp = map(1.577350)
 Kp = map(1.910684)
 
-# 零点取各自的价带顶：TB 第 3 列（2 条价带按能量升序），VASP(ncl) 第 19 列（9 条价带 × 2 自旋）
-# 注意用 column() 而不是 (1+NV)；stats 必须在 set xrange/yrange 之前
+# 零点取各自的价带顶：TB 第 2 列（1 条价带），VASP 第 10 列（18 个价电子 -> 9 条价带）
+# 注意用 column(1+NV) 而不是 (1+NV)；stats 必须在 set xrange/yrange 之前
 NV_VASP = 9
-NV_TB   = 2
+NV_TB   = 1
 
-stats "data/band_soc.dat"   using (column(1+NV_TB))     nooutput
+stats "data/band_tnn.dat" using (column(1+NV_TB))   nooutput
 tb_vbm   = STATS_max
-stats "MoS2-pbe-ncl.txt"    using (column(1+2*NV_VASP)) nooutput
+stats "MoS2-pbe.txt"      using (column(1+NV_VASP)) nooutput
 vasp_vbm = STATS_max
 
 # 设置坐标轴标签和范围
@@ -59,7 +59,8 @@ set label 1 sprintf("zero: TB VBM=%.4f / VASP VBM=%.4f eV", tb_vbm, vasp_vbm) \
       at graph 0.012, 0.95 font "Arial,9"
 
 set dashtype 2 (3,3)
-plot "MoS2-pbe-ncl.txt" using 1:($2 - vasp_vbm) with lines lc "orange" lw 4 title "VASP PBE", \
-     for [col=3:33] "MoS2-pbe-ncl.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
-     "data/band_soc.dat" using (map($1)):($2 - tb_vbm) with lines lc "blue" lw 3 dt 2 title "TB-NN-NNN-TNN-SOC", \
-     for [col=3:7] "data/band_soc.dat" using (map($1)):(column(col) - tb_vbm) with lines lc "blue" lw 3 dt 2 notitle
+plot "MoS2-pbe.txt" using 1:($2 - vasp_vbm) with lines lc "orange" lw 4 title "VASP PBE", \
+     for [col=3:17] "MoS2-pbe.txt" using 1:(column(col) - vasp_vbm) with lines lc "orange" lw 4 notitle, \
+     "data/band_tnn.dat" using (map($1)):($2 - tb_vbm) with lines lc "blue" lw 3 dt 2 title "TB-NN-NNN-TNN", \
+     "data/band_tnn.dat" using (map($1)):($3 - tb_vbm) with lines lc "blue" lw 3 dt 2 notitle, \
+     "data/band_tnn.dat" using (map($1)):($4 - tb_vbm) with lines lc "blue" lw 3 dt 2 notitle

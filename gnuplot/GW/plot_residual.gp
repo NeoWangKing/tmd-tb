@@ -1,7 +1,7 @@
 # 拟合诊断：GW 参考能带（重连成物理能带后）与当前 TB 的残差曲线
-# 数据由 bin/fit_main 生成（读 data/band_gw.dat 与 GW 参考能带）
+# 数据由 bin/fit_main 生成（读 data/band_tnn_gw_path.dat 与 GW 参考能带）
 if (!exists("MODE")) MODE = 1
-OUTFILE = "img/GW-residual.png"
+OUTFILE = "img/GW/residual.png"
 # pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
 if (!exists("GTERM")) GTERM = "pngcairo"
 
@@ -14,7 +14,7 @@ if (MODE == 1) {
   print "MODE = 0 -> 弹出 Qt 窗口（看不到窗口 = 本机 Qt 终端不可用，请用 -e \"MODE=1\"）"
 }
 
-# 原始残差均值（= 最优刚性平移量），从数据里算，不写死
+# 原始残差均值
 stats "data/fit_residual.dat" using 2 nooutput; mVB  = STATS_mean
 stats "data/fit_residual.dat" using 3 nooutput; mCB1 = STATS_mean
 stats "data/fit_residual.dat" using 4 nooutput; mCB2 = STATS_mean
@@ -37,9 +37,9 @@ set label 1 sprintf("零线=平移后;  原始残差均值 VB %.2f / CB1 %.2f / 
       at graph 0.015, 0.95 font "Arial,9"
 
 set dashtype 2 (4,3)
-plot "data/fit_residual.dat" using 1:5 w l lc "blue"  lw 2.5 title "VB  平移后", \
-     "data/fit_residual.dat" using 1:6 w l lc "red"   lw 2.5 title "CB1 平移后", \
-     "data/fit_residual.dat" using 1:7 w l lc "green" lw 2.0 title "CB2 平移后", \
-     "data/fit_residual.dat" using 1:8 w l lc "blue"  lw 1.0 dt 2 notitle, \
-     "data/fit_residual.dat" using 1:9 w l lc "red"   lw 1.0 dt 2 notitle, \
+plot "data/fit_residual.dat" using 1:5  w l lc "blue"  lw 2.5 title "VB  平移后", \
+     "data/fit_residual.dat" using 1:6  w l lc "red"   lw 2.5 title "CB1 平移后", \
+     "data/fit_residual.dat" using 1:7  w l lc "green" lw 2.0 title "CB2 平移后", \
+     "data/fit_residual.dat" using 1:8  w l lc "blue"  lw 1.0 dt 2 notitle, \
+     "data/fit_residual.dat" using 1:9  w l lc "red"   lw 1.0 dt 2 notitle, \
      "data/fit_residual.dat" using 1:10 w l lc "green" lw 1.0 dt 2 notitle

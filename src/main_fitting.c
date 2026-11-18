@@ -5,7 +5,7 @@
 //   k = GW 参考数据里的全部 285 个点
 //
 // 读 MoS2-GWBSE-data/wannier90_band.kpt（k 点）与 wannier90_band.dat（参考能量）
-// 写 data/gw_fit_bands.dat（初值/拟合后的 TB 能带，供 plot_opt.gp 画图）
+// 写 data/gw_bands.dat（初值/拟合后的 TB 能带，供 plot_opt.gp 画图）
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,6 +125,7 @@ static void model_bands(const double *p, TB_Hop *hop)
 #endif
 }
 
+// （这里需要一些注释）
 static double loss(const double *p, TB_Hop *hop)
 {
     TB_Params q;
@@ -168,6 +169,7 @@ int main(void)
         fprintf(stderr, "[ERROR] k 点数不一致：kpt %d，band %d\n", nk, gw.nk);
         return 1;
     }
+
     for (int b = 0; b < 3; ++b) gsorted[b] = gw.E + (GW_PAIR[0] - 1 + b) * nk;
 
     // ---- 重连：把"每个 k 点排序好的能级"接回物理能带 ----
@@ -215,7 +217,7 @@ int main(void)
         // 写出重连结果，供 plot_reconnect.gp 直观检查。
         // RECONNECT=0 的对照组用不到这个文件，不重复写。
 #if RECONNECT
-        FILE *fo = fopen(OUT_PREFIX "gw_reconnect.dat", "w");
+        FILE *fo = fopen(OUT_PREFIX"gw_reconnect.dat", "w");
         if (fo) {
             fprintf(fo, "# col1: k (Å^-1)\n");
             fprintf(fo, "# col2-%d : 排序块 %d..%d（原始数据）\n", 1 + NCAND, CAND_FIRST, CAND_LAST);
@@ -299,7 +301,7 @@ int main(void)
     double step[NP];
     for (int j = 0; j < NP; ++j) step[j] = 0.05;   // 初值 50 meV
 
-    for (int it = 1; it <= 2000; ++it) {
+    for (int it = 1; it <= 10000; ++it) {
         int improved = 0;
         double before = best;
         for (int j = 0; j < NP; ++j) {
@@ -371,7 +373,7 @@ int main(void)
 
     // 写出参数，方便直接落到 params.h 的 PARAM_SET==2 分支
     {
-        FILE *fp = fopen(OUT_PREFIX "gw_params.txt", "w");
+        FILE *fp = fopen(OUT_PREFIX "gw_fitted_params.txt", "w");
         if (fp) {
             fprintf(fp, "# opt_main.c 拟合出的 GW 参数（可直接粘进 params.h）\n");
             fprintf(fp, "# NPAIR=%d RECONNECT=%d CB_PICK=(%d,%d) RMS=%.4f eV\n",
@@ -395,8 +397,8 @@ int main(void)
         printf("\n");
     }
 
-    FILE *out = fopen(OUT_PREFIX "gw_fit_bands.dat", "w");
-    if (!out) { fprintf(stderr, "[ERROR] cannot write " OUT_PREFIX "gw_fit_bands.dat\n"); return 1; }
+    FILE *out = fopen(OUT_PREFIX "gw_bands.dat", "w");
+    if (!out) { fprintf(stderr, "[ERROR] cannot write " OUT_PREFIX "gw_bands.dat\n"); return 1; }
     fprintf(out, "# col1: k (Å^-1)\n");
     fprintf(out, "# col2-%d : GW 参考（带 %d/%d/%d）\n", 1+NPAIR, GW_PAIR[0], GW_PAIR[1 % NPAIR], GW_PAIR[2 % NPAIR]);
     fprintf(out, "# col%d-%d : TB 初值（params.h 文献参数）\n", 2+NPAIR, 1+2*NPAIR);
@@ -409,6 +411,6 @@ int main(void)
         fprintf(out, "\n");
     }
     fclose(out);
-    printf("\n已写出 " OUT_PREFIX "gw_fit_bands.dat\n");
+    printf("\n已写出 " OUT_PREFIX"gw_bands.dat\n");
     return 0;
 }

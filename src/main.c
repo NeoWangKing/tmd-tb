@@ -8,7 +8,7 @@
 #include "kpath.h"
 #include "bandtrack.h"
 
-// 输出表的列数（能带条数）
+// 考虑 SOC 的时候能带分裂，需要考虑 6 条能带
 #if SOC_MODEL
 #define TB_NBAND 6
 #else
@@ -18,7 +18,7 @@
 // 输入升序排列的能带 eig，以及能带总数 nband
 // 返回价带顶能量 (VBM)
 static double find_vbm_from_sorted_eigenvalues(double *eig, int nband) {
-    // 找到相邻能级差最大的位置，作为带隙
+    // 粗糙的选取相邻能级差最大的两条带，作为带隙
     double max_gap = 0.0;
     int gap_idx = -1;
     for (int i = 0; i < nband-1; i++) {

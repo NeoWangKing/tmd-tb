@@ -62,4 +62,4 @@
 K     -0.555->-0.055  +0.428->-0.071  -0.010->-0.141
 M     -0.922->-0.023  +0.590->-0.058  +0.589->+0.035
 
-已写出 data/sorted_gw_fit_bands.dat
+已写出 data/unconnected_gw_bands.dat

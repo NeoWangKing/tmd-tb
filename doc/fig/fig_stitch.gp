@@ -1,7 +1,7 @@
 # 文档 §4.2 用图：两种口径各占一栏，每栏把"拟合目标"和"拟合结果"用不同线型分开
 #   (a) 正确口径：拼接后的物理能带（目标，实线） vs 按它拟合的结果（虚线）
 #   (b) 错误口径：按能量排序的能带（目标，实线） vs 按它拟合的结果（虚线）
-# 数据：data/fig_stitch.dat = 并排(gw_fit_bands.dat, sorted_gw_fit_bands.dat)
+# 数据：data/fig_stitch.dat = 并排(gw_bands.dat, unconnected_gw_bands.dat)
 #   col1-10  正确口径：k, 物理参考(3), TB 初值(3), TB 拟合(3)
 #   col11-20 错误口径：k, 排序参考(3), TB 初值(3), TB 拟合(3)
 if (!exists("MODE")) MODE = 1

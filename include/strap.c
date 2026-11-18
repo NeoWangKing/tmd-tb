@@ -54,28 +54,28 @@ void band_free(Band *b)
     band_init(b);
 }
 
-int band_reserve(Band *b, size_t cap)
+int band_reserve(Band *band, size_t nk)
 {
-    if (!b) return 1;
-    if (cap <= b->capacity) return 0;
+    if (!band) return 1;
+    if (nk <= band->capacity) return 0;
 
-    size_t nc = b->capacity ? b->capacity : BAND_INIT_CAP;
-    while (nc < cap) nc *= 2;
+    size_t capacity = band->capacity ? band->capacity : BAND_INIT_CAP;
+    while (capacity < nk) capacity *= 2;
 
     // 先接临时指针：realloc 失败时原指针不能丢
-    double *tmp = realloc(b->keys, nc * sizeof *tmp);
+    double *tmp = realloc(band->keys, capacity * sizeof *tmp);
     if (!tmp) {
-        fprintf(stderr, "[ERROR] band_reserve: keys 扩容到 %zu 失败\n", nc);
+        fprintf(stderr, "[ERROR] band_reserve: could not expand key to %zu\n", capacity);
         return 1;
     }
-    b->keys = tmp;
-    tmp = realloc(b->values, nc * sizeof *tmp);
+    band->keys = tmp;
+    tmp = realloc(band->values, capacity * sizeof *tmp);
     if (!tmp) {
-        fprintf(stderr, "[ERROR] band_reserve: values 扩容到 %zu 失败\n", nc);
+        fprintf(stderr, "[ERROR] band_reserve: could not expand values to %zu\n", capacity);
         return 1;
     }
-    b->values = tmp;
-    b->capacity = nc;
+    band->values = tmp;
+    band->capacity = capacity;
     return 0;
 }
 
@@ -88,10 +88,6 @@ int band_push(Band *b, double key, double value)
     ++b->count;
     return 0;
 }
-
-//=====================================
-// 一组带
-//=====================================
 
 void strap_init(StrapBands *s)
 {
@@ -109,12 +105,12 @@ void strap_free(StrapBands *s)
     strap_init(s);
 }
 
-size_t strap_nb(const StrapBands *s)
+size_t strap_band_count(const StrapBands *s)
 {
     return s ? s->count : 0;
 }
 
-size_t strap_nk(const StrapBands *s)
+size_t strap_sample_count(const StrapBands *s)
 {
     return (s && s->count > 0) ? s->bands[0].count : 0;
 }
@@ -128,7 +124,7 @@ static int strap_reserve(StrapBands *s, size_t cap)
 
     Band *tmp = realloc(s->bands, nc * sizeof *tmp);
     if (!tmp) {
-        fprintf(stderr, "[ERROR] strap_reserve: bands 扩容到 %zu 失败\n", nc);
+        fprintf(stderr, "[ERROR] strap_reserve: could not expand bands to %zu\n", nc);
         return 1;
     }
     s->bands = tmp;
@@ -136,7 +132,7 @@ static int strap_reserve(StrapBands *s, size_t cap)
     return 0;
 }
 
-Band *strap_push_band(StrapBands *s)
+Band *strap_new_band(StrapBands *s)
 {
     if (!s) return NULL;
     if (strap_reserve(s, s->count + 1)) return NULL;
@@ -144,30 +140,30 @@ Band *strap_push_band(StrapBands *s)
     return &s->bands[s->count++];
 }
 
-int strap_check_uniform(const StrapBands *s)
+int strap_check_uniform(const StrapBands *strap)
 {
-    if (!s || s->count == 0) {
-        fprintf(stderr, "[ERROR] check_uniform: 一条带都没有\n");
+    if (!strap || strap->count == 0) {
+        fprintf(stderr, "[ERROR] check_uniform: there is not any band\n");
         return 1;
     }
-    const Band *ref = &s->bands[0];
+    const Band *ref = &strap->bands[0];
     if (ref->count == 0) {
-        fprintf(stderr, "[ERROR] check_uniform: 第 1 条带没有点\n");
+        fprintf(stderr, "[ERROR] check_uniform: the band 1 has no point\n");
         return 1;
     }
-    for (size_t b = 1; b < s->count; ++b) {
-        const Band *q = &s->bands[b];
-        if (q->count != ref->count) {
-            fprintf(stderr, "[ERROR] check_uniform: 第 %zu 条带有 %zu 个点，第 1 条有 %zu 个\n",
-                    b + 1, q->count, ref->count);
+    for (size_t i = 1; i < strap->count; ++i) {
+        const Band *band = &strap->bands[i];
+        if (band->count != ref->count) {
+            fprintf(stderr, "[ERROR] check_uniform: the band %zu has %zu points (%zu are expected)\n",
+                    i + 1, band->count, ref->count);
             return 1;
         }
-        for (size_t i = 0; i < ref->count; ++i) {
-            double tol = 1e-8 * (1.0 + fabs(ref->keys[i]));
-            if (fabs(q->keys[i] - ref->keys[i]) > tol) {
+        for (size_t j = 0; j < ref->count; ++j) {
+            double tol = 1e-8 * (1.0 + fabs(ref->keys[j]));
+            if (fabs(band->keys[j] - ref->keys[j]) > tol) {
                 fprintf(stderr,
-                        "[ERROR] check_uniform: 第 %zu 条带第 %zu 个横坐标 %.10g 与第 1 条的 %.10g 不一致\n",
-                        b + 1, i, q->keys[i], ref->keys[i]);
+                        "[ERROR] check_uniform: the point %zu of the band %zu (%.10g) has a different key than the band 1 (%.10g)\n",
+                        j, i + 1, band->keys[j], ref->keys[j]);
                 return 1;
             }
         }
@@ -175,117 +171,112 @@ int strap_check_uniform(const StrapBands *s)
     return 0;
 }
 
-//=====================================
-// 读
-//=====================================
-
 // 块式：每块 "k E"，块与块之间用空行隔开，一块就是一条带
-static int read_block(const char *file_path, StrapBands *s)
+static int read_block(const char *file_path, StrapBands *strap)
 {
     FILE *f = fopen(file_path, "r");
     if (!f) {
-        fprintf(stderr, "[ERROR] 打不开 %s\n", file_path);
+        fprintf(stderr, "[ERROR] could not open %s\n", file_path);
         return 1;
     }
 
     char line[BUF_SIZE];
-    Band *cur = NULL;
+    Band *band = NULL;
     while (fgets(line, sizeof line, f)) {
-        if (line_is_blank(line)) {
-            cur = NULL;     // 空行 = 一条带的结束
-            continue;
-        }
+        if (line_is_blank(line)) { band = NULL; continue; }
         if (line[0] == '#') continue;
 
-        double kv = 0, ev = 0;
-        if (sscanf(line, "%lf %lf", &kv, &ev) != 2) continue;
-        if (!cur) {
-            cur = strap_push_band(s);
-            if (!cur) {
+        double key = 0, value = 0;
+        if (sscanf(line, "%lf %lf", &key, &value) != 2) continue;
+        if (!band) {
+            band = strap_new_band(strap);
+            if (!band) {
                 fclose(f);
                 return 1;
             }
         }
-        if (band_push(cur, kv, ev)) {
+        if (band_push(band, key, value)) {
             fclose(f);
             return 1;
         }
     }
     fclose(f);
 
-    if (s->count == 0) {
-        fprintf(stderr, "[ERROR] %s: 没读出数据\n", file_path);
+    if (strap->count == 0) {
+        fprintf(stderr, "[ERROR] %s: there is no data\n", file_path);
         return 1;
     }
-    return strap_check_uniform(s);
+    return strap_check_uniform(strap);
 }
 
 // 列式：每行 "k E1 E2 ... En"，第 c 个能量攒成第 c 条带
-static int read_column(const char *file_path, StrapBands *s)
+static int read_column(const char *file_path, StrapBands *strap)
 {
     FILE *f = fopen(file_path, "r");
     if (!f) {
-        fprintf(stderr, "[ERROR] 打不开 %s\n", file_path);
+        fprintf(stderr, "[ERROR] could not open %s\n", file_path);
         return 1;
     }
 
     char line[BUF_SIZE];
-    int ncol = -1;
-    size_t nk = 0;
+    int column_count = -1;
+    size_t key_count = 0;
     while (fgets(line, sizeof line, f)) {
         if (line_is_blank(line) || line[0] == '#') continue;
-        int nc = count_datas(line);
-        if (ncol < 0) ncol = nc;
-        else if (nc != ncol) {
-            fprintf(stderr, "[ERROR] %s: 第 %zu 行有 %d 个数，前面是 %d 个\n",
-                    file_path, nk + 1, nc, ncol);
+        int data_count = count_datas(line);
+        if (column_count < 0) column_count = data_count;
+        else if (data_count != column_count) {
+            fprintf(stderr, "[ERROR] %s: there are %d datas in the line %zu (%d datas are expected)\n",
+                    file_path, data_count, key_count + 1, column_count);
             fclose(f);
             return 1;
         }
-        ++nk;
+        ++key_count;
     }
     fclose(f);
 
-    if (nk == 0 || ncol < 2) {
-        fprintf(stderr, "[ERROR] %s: 没读出数据（nk=%zu ncol=%d）\n", file_path, nk, ncol);
+    if (key_count == 0 || column_count < 2) {
+        fprintf(stderr, "[ERROR] %s: there is no data to read (nk=%zu ncol=%d)\n", file_path, key_count, column_count);
         return 1;
     }
 
     f = fopen(file_path, "r");
     if (!f) {
-        fprintf(stderr, "[ERROR] 打不开 %s\n", file_path);
+        fprintf(stderr, "[ERROR] could not open %s\n", file_path);
         return 1;
     }
-    for (int c = 1; c < ncol; ++c)
-        if (!strap_push_band(s)) {
+    for (int i = 1; i < column_count; ++i) {
+        if (!strap_new_band(strap)) {
             fclose(f);
             return 1;
         }
-    for (size_t b = 0; b < s->count; ++b)
-        if (band_reserve(&s->bands[b], nk)) {
+    }
+    for (size_t i = 0; i < strap->count; ++i) {
+        if (band_reserve(&strap->bands[i], key_count)) {
             fclose(f);
             return 1;
         }
+    }
 
     size_t i = 0;
     while (fgets(line, sizeof line, f)) {
         if (line_is_blank(line) || line[0] == '#') continue;
-        if (i >= nk) break;
+        if (i >= key_count) break;
 
         const char *p = line;
         char *end = NULL;
-        double kv = strtod(p, &end);
+        double key = strtod(p, &end);
         if (end == p) continue;
         p = end;
-        for (size_t b = 0; b < s->count; ++b) {
-            double ev = strtod(p, &end);
+        for (size_t j = 0; j < strap->count; ++j) {
+            double value = strtod(p, &end);
             if (end == p) {
-                fprintf(stderr, "[ERROR] %s: 第 %zu 行只读到 %zu 个能量\n", file_path, i + 1, b);
+                fprintf(stderr, "[ERROR] %s: there are only %zu values in the line %zu\n", file_path, j, i + 1);
                 fclose(f);
                 return 1;
             }
             p = end;
-            if (band_push(&s->bands[b], kv, ev)) {
+            if (band_push(&strap->bands[j], key, value)) {
                 fclose(f);
                 return 1;
             }
@@ -293,124 +284,130 @@ static int read_column(const char *file_path, StrapBands *s)
         ++i;
     }
     fclose(f);
-    return strap_check_uniform(s);
+    return strap_check_uniform(strap);
 }
 
-int strap_read(const char *file_path, StrapBands *s)
+int strap_read(const char *file_path, StrapBands *strap)
 {
-    if (!file_path || !s) return 1;
-    strap_free(s);
+    if (!file_path || !strap) return 1;
+    strap_free(strap);
 
     FILE *f = fopen(file_path, "r");
     if (!f) {
-        fprintf(stderr, "[ERROR] 打不开 %s\n", file_path);
+        fprintf(stderr, "[ERROR] could not open %s\n", file_path);
         return 1;
     }
     char line[BUF_SIZE];
-    int ncol = 0;
+    int column_count = 0;
     while (fgets(line, sizeof line, f)) {
         if (line_is_blank(line) || line[0] == '#') continue;
-        ncol = count_datas(line);
+        column_count = count_datas(line);
         break;
     }
     fclose(f);
 
-    if (ncol <= 0) {
-        fprintf(stderr, "[ERROR] %s: 文件里没有数据行\n", file_path);
+    if (column_count <= 0) {
+        fprintf(stderr, "[ERROR] there is no data in %s\n", file_path);
         return 1;
     }
-    return (ncol > 2) ? read_column(file_path, s) : read_block(file_path, s);
+    return (column_count > 2) ? read_column(file_path, strap) : read_block(file_path, strap);
 }
 
-//=====================================
-// 写
-//=====================================
-
-int strap_write(const char *file_path, const StrapBands *s, int layout, int prec,
-                const char *header)
+int strap_write(const char *file_path, const StrapBands *strap, int layout,
+                int sig, const char *header)
 {
-    if (!file_path || !s || s->count == 0) return 1;
-    if (prec <= 0) prec = 17;
+    if (!file_path || !strap || strap->count == 0) return 1;
+    if (sig <= 0) sig = 17;
 
-    size_t nb = s->count;
-    size_t nk = strap_nk(s);
-    if (layout == STRAP_LAYOUT_COLUMN && strap_check_uniform(s)) return 1;
+    size_t band_count = strap->count;
+    size_t sample_count = strap_sample_count(strap);
+    if (layout == STRAP_LAYOUT_COLUMN && strap_check_uniform(strap)) return 1;
 
     FILE *f = fopen(file_path, "w");
     if (!f) {
-        fprintf(stderr, "[ERROR] 写不了 %s\n", file_path);
+        fprintf(stderr, "[ERROR] could not write %s\n", file_path);
         return 1;
     }
     if (header) fprintf(f, "# %s\n", header);
-    fprintf(f, "# nk = %zu, nb = %zu\n", nk, nb);
+    fprintf(f, "# sample_count = %zu, band_count = %zu\n", sample_count, band_count);
 
-    if (layout == STRAP_LAYOUT_BLOCK) {
-        for (size_t b = 0; b < nb; ++b) {
-            if (b) fprintf(f, "\n");
-            const Band *p = &s->bands[b];
-            for (size_t i = 0; i < p->count; ++i)
-                fprintf(f, "%.10g %.*g\n", p->keys[i], prec, p->values[i]);
-        }
-    } else {
-        const Band *ref = &s->bands[0];
-        for (size_t i = 0; i < nk; ++i) {
-            fprintf(f, "%.10g", ref->keys[i]);
-            for (size_t b = 0; b < nb; ++b)
-                fprintf(f, " %.*g", prec, s->bands[b].values[i]);
-            fprintf(f, "\n");
-        }
+    switch (layout) {
+        case STRAP_LAYOUT_BLOCK : 
+            {
+                for (size_t b = 0; b < band_count; ++b) {
+                    if (b) fprintf(f, "\n");
+                    const Band *p = &strap->bands[b];
+                    for (size_t i = 0; i < p->count; ++i)
+                        fprintf(f, "%.*g %.*g\n", sig, p->keys[i], sig, p->values[i]);
+                }
+                break;
+            }
+        case STRAP_LAYOUT_COLUMN :
+            {
+                const Band *ref = &strap->bands[0];
+                for (size_t i = 0; i < sample_count; ++i) {
+                    fprintf(f, "%.*g", sig, ref->keys[i]);
+                    for (size_t b = 0; b < band_count; ++b)
+                        fprintf(f, " %.*g", sig, strap->bands[b].values[i]);
+                    fprintf(f, "\n");
+                }
+                break;
+            }
+        default : 
+            {
+                fprintf(stderr, "[ERROR] unknown layout %d\n", layout);
+                fclose(f);
+                return 1;
+            }
     }
     fclose(f);
     return 0;
 }
 
-//=====================================
-// 处理
-//=====================================
-
-int strap_sort_by_energy(StrapBands *s)
+int strap_sort_by_energy(StrapBands *strap)
 {
-    if (!s || s->count == 0) return 1;
-    if (strap_check_uniform(s)) return 1;
+    if (!strap || strap->count == 0) return 1;
+    if (strap_check_uniform(strap)) return 1;
 
-    size_t nb = s->count, nk = strap_nk(s);
-    double *col = malloc(sizeof *col * nb);
-    if (!col) {
-        fprintf(stderr, "[ERROR] 内存不足\n");
+    size_t band_count = strap->count;
+    size_t sample_count = strap_sample_count(strap);
+    double *column = malloc(sizeof *column * band_count);
+    if (!column) {
+        fprintf(stderr, "[ERROR] buy more ram lol!\n");
         return 1;
     }
-    for (size_t i = 0; i < nk; ++i) {
-        for (size_t b = 0; b < nb; ++b) col[b] = s->bands[b].values[i];
-        qsort(col, nb, sizeof *col, cmp_double);
-        for (size_t b = 0; b < nb; ++b) s->bands[b].values[i] = col[b];
+    for (size_t i = 0; i < sample_count; ++i) {
+        for (size_t j = 0; j < band_count; ++j) column[j] = strap->bands[j].values[i];
+        qsort(column, band_count, sizeof *column, cmp_double);
+        for (size_t j = 0; j < band_count; ++j) strap->bands[j].values[i] = column[j];
     }
-    free(col);
+    free(column);
     return 0;
 }
 
-int strap_find_anchor(const StrapBands *s, size_t *anchor)
+int strap_find_anchor(const StrapBands *strap, size_t *anchor)
 {
-    if (!s || !anchor || s->count < 2) return 1;
-    if (strap_check_uniform(s)) return 1;
+    if (!strap || !anchor || strap->count < 2) return 1;
+    if (strap_check_uniform(strap)) return 1;
 
-    size_t nb = s->count, nk = strap_nk(s);
-    if (nk < 3) {
-        fprintf(stderr, "[ERROR] strap_find_anchor: 只有 %zu 个 k 点，没法外推\n", nk);
+    size_t band_count = strap->count, sample_count = strap_sample_count(strap);
+    if (sample_count < 3) {
+        fprintf(stderr, "[ERROR] strap_find_anchor: there are only %zu sample point\n", sample_count);
         return 1;
     }
-    double *col = malloc(sizeof *col * nb);
-    if (!col) {
-        fprintf(stderr, "[ERROR] 内存不足\n");
+    double *column = malloc(sizeof *column * band_count);
+    if (!column) {
+        fprintf(stderr, "[ERROR] buy more ram lol!\n");
         return 1;
     }
-    size_t best_i = nk / 2;
+    size_t best_i = sample_count / 2;
     double best_gap = -1;
-    for (size_t i = 0; i < nk; ++i) {
-        for (size_t b = 0; b < nb; ++b) col[b] = s->bands[b].values[i];
-        qsort(col, nb, sizeof *col, cmp_double);
-        double gap = col[1] - col[0];
-        for (size_t b = 2; b < nb; ++b) {
-            double d = col[b] - col[b - 1];
+    for (size_t i = 0; i < sample_count; ++i) {
+        for (size_t j = 0; j < band_count; ++j) column[j] = strap->bands[j].values[i];
+        qsort(column, band_count, sizeof *column, cmp_double);
+        double gap = column[1] - column[0];
+        for (size_t b = 2; b < band_count; ++b) {
+            double d = column[b] - column[b - 1];
             if (d < gap) gap = d;
         }
         if (gap > best_gap) {
@@ -418,10 +415,10 @@ int strap_find_anchor(const StrapBands *s, size_t *anchor)
             best_i = i;
         }
     }
-    free(col);
+    free(column);
     // 锚点两侧都要有邻居，端点处没法外推
     if (best_i == 0) best_i = 1;
-    if (best_i + 1 >= nk) best_i = nk - 2;
+    if (best_i + 1 >= sample_count) best_i = sample_count - 2;
     *anchor = best_i;
     return 0;
 }
@@ -436,7 +433,7 @@ static int hungarian(size_t n, const double *cost, size_t *assign)
     double *minv = malloc(sizeof *minv * (n + 1));
     char *used = malloc(n + 1);
     if (!u || !v || !p || !way || !minv || !used) {
-        fprintf(stderr, "[ERROR] hungarian: 内存不足\n");
+        fprintf(stderr, "[ERROR] hungarian: buy more ram lol!\n");
         free(u); free(v); free(p); free(way); free(minv); free(used);
         return 1;
     }
@@ -486,30 +483,30 @@ static int hungarian(size_t n, const double *cost, size_t *assign)
     return 0;
 }
 
-int strap_reconnect(StrapBands *s, size_t anchor)
+int strap_reconnect(StrapBands *strap, size_t anchor)
 {
-    if (!s || s->count < 2) return 1;
-    if (strap_check_uniform(s)) return 1;
+    if (!strap || strap->count < 2) return 1;
+    if (strap_check_uniform(strap)) return 1;
 
-    size_t nb = s->count, nk = strap_nk(s);
+    size_t nb = strap->count, nk = strap_sample_count(strap);
     if (nk < 3 || anchor == 0 || anchor + 1 >= nk) {
-        fprintf(stderr, "[ERROR] strap_reconnect: 锚点 %zu 越界（需要 0 < anchor < %zu）\n",
+        fprintf(stderr, "[ERROR] strap_reconnect: anchor out of edge %zu (expect 0 < anchor < %zu)\n",
                 anchor, nk - 1);
         return 1;
     }
 
-    size_t *asg = malloc(sizeof *asg * nk * nb);
+    size_t *asg  = malloc(sizeof *asg  * nb * nk);
     double *cost = malloc(sizeof *cost * nb * nb);
     size_t *perm = malloc(sizeof *perm * nb);
-    double *cur = malloc(sizeof *cur * nb);
+    double *cur  = malloc(sizeof *cur  * nb);
     double *prev = malloc(sizeof *prev * nb);
     double *pred = malloc(sizeof *pred * nb);
-    double *now = malloc(sizeof *now * nb);
-    double *out = malloc(sizeof *out * nk * nb);
+    double *now  = malloc(sizeof *now  * nb);
+    double *out  = malloc(sizeof *out  * nb * nk);
     if (!asg || !cost || !perm || !cur || !prev || !pred || !now || !out) {
-        fprintf(stderr, "[ERROR] strap_reconnect: 内存不足\n");
-        free(asg); free(cost); free(perm); free(cur);
-        free(prev); free(pred); free(now); free(out);
+        fprintf(stderr, "[ERROR] strap_reconnect: buy more ram lol!\n");
+        free(asg);  free(cost); free(perm); free(cur);
+        free(prev); free(pred); free(now);  free(out);
         return 1;
     }
 
@@ -520,13 +517,13 @@ int strap_reconnect(StrapBands *s, size_t anchor)
     // 自锚点向两侧逐点走：用前两步线性外推预测位置，再取最优指派
     for (int dir = 1; dir >= -1; dir -= 2) {
         for (size_t b = 0; b < nb; ++b) {
-            cur[b] = s->bands[b].values[anchor];
+            cur[b] = strap->bands[b].values[anchor];
             prev[b] = cur[b];
         }
         for (long i = (long)anchor + dir; i >= 0 && i < (long)nk; i += dir) {
             for (size_t b = 0; b < nb; ++b) {
                 pred[b] = 2.0 * cur[b] - prev[b];
-                now[b] = s->bands[b].values[i];
+                now[b] = strap->bands[b].values[i];
             }
             for (size_t b = 0; b < nb; ++b)
                 for (size_t c = 0; c < nb; ++c) {
@@ -548,10 +545,10 @@ int strap_reconnect(StrapBands *s, size_t anchor)
 
     for (size_t i = 0; i < nk; ++i)
         for (size_t b = 0; b < nb; ++b)
-            out[b * nk + i] = s->bands[asg[i * nb + b]].values[i];
+            out[b * nk + i] = strap->bands[asg[i * nb + b]].values[i];
     for (size_t i = 0; i < nk; ++i)
         for (size_t b = 0; b < nb; ++b)
-            s->bands[b].values[i] = out[b * nk + i];
+            strap->bands[b].values[i] = out[b * nk + i];
 
     free(asg); free(cost); free(perm); free(cur);
     free(prev); free(pred); free(now); free(out);

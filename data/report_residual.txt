@@ -1,6 +1,6 @@
 GW 参考能带重连（斜率外推，锚点 = K）：粗糙度 0.02694 -> 0.01544
 拟合诊断（Step A）：GW 参考 vs 当前 TB
-  TB : data/band_gw.dat                       287 点 -> 去重 285 点
+  TB : data/band_tnn_gw_path.dat                       287 点 -> 去重 285 点
   GW : MoS2-GWBSE-data/wannier90_band.dat     17 带 x 285 点
   k 轴最大偏差 = 1.10e-06 Å^-1
 

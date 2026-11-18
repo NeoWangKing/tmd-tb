@@ -1,6 +1,5 @@
 #!/bin/sh
 # 四个模型 + 两个 GW 路径模型：编译、算能带、出图。
-# 不依赖 LAPACK/BLAS，Linux / macOS 通用；CC 可用环境变量覆盖。
 #
 # 作图统一放在最后、按依赖顺序做，不在算完某条能带后"顺带"画 ——
 # 有的作图脚本要读后面几步才生成的表（plot_gwfit.gp 要读 opt_main 写的
@@ -12,19 +11,18 @@ set -xe
 # 允许从任意目录调用这个脚本，所有相对路径都按脚本所在目录算
 cd "$(dirname "$0")"
 
+CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Iinclude"
+LIBSRC="include/mat.c include/tb.c include/herm3.c include/kpath.c include/bandtrack.c include/gwdata.c include/strap.c"
+SRC="src/main.c $LIBSRC"
+
+mkdir -p bin data img
+
+# 系统兼容层
 CC=${CC:-}
 if [ -z "$CC" ]; then
     if command -v clang >/dev/null 2>&1; then CC=clang; else CC=cc; fi
 fi
-CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Isrc"
-LIBSRC="src/mat.c src/tb.c src/herm3.c src/kpath.c src/bandtrack.c src/gwdata.c"
-SRC="main.c $LIBSRC"
 
-mkdir -p bin data img
-
-# ---- 作图环境 ----
-# pngcairo 需要 libcairo，有的机器上没编进去，那就退回老的 png 终端（能出图，
-# 字体糙一点）；连 gnuplot 都没有就只警告不中断：能带数据照样生成，只是没有图。
 GTERM=pngcairo
 HAVE_GP=1
 if command -v gnuplot >/dev/null 2>&1; then
@@ -65,49 +63,53 @@ build_run() {
 }
 
 # ---- 算能带 ----
-# 阶段一：对 VASP PBE 能带（PATH_MODE=0，默认）
-build_run nn
-build_run tnn      -DNNN_MODEL=1
-build_run soc      -DNNN_MODEL=1 -DSOC_MODEL=1
-build_run soc_spin -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=1
+# 对 VASP PBE 能带（PATH_MODE=0）
+# M → Γ → K → M' → K'
+build_run nn          -DNNN_MODEL=0 -DSOC_MODEL=0 -DSOC_SPIN=0
+build_run tnn         -DNNN_MODEL=1 -DSOC_MODEL=0 -DSOC_SPIN=0
+build_run soc         -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=0
+build_run soc_spin    -DNNN_MODEL=1 -DSOC_MODEL=1 -DSOC_SPIN=1
 
-# 阶段二：对 wannier90 的 GW 能带（PATH_MODE=1）
-# gw_nn 只出数据（它没有自己的作图脚本），被 plot_gw.gp 当参考读取
-build_run gw_nn    -DPATH_MODE=1
-build_run gw       -DNNN_MODEL=1 -DPATH_MODE=1
+# 对 wannier90 的 GW 能带（PATH_MODE=1）
+# Γ → K → M → Γ
+# TODO: gw_nn 只出数据（它没有自己的作图脚本），被 plot_gw.gp 当参考读取
+build_run nn_gw_path  -DNNN_MODEL=0 -DPATH_MODE=1
+build_run tnn_gw_path -DNNN_MODEL=1 -DPATH_MODE=1
 
-# 任务①：用落地到 params.h 的 GW 参数算能带（GW 路径）
-build_run gwfit    -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
+# 用落地到 params.h 的 GW 参数算能带（GW 路径）
+build_run tnn_gw_fit  -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
 
-# 拟合诊断（Step A）：GW 参考能带 vs 当前 TB 的残差；读上面生成的 data/band_gw.dat
-"$CC" $CFLAGS -o bin/fit_main $LIBSRC fit_main.c -lm
-./bin/fit_main > data/fit_report.txt
+# 拟合诊断（Step A）：GW 参考能带 vs 当前 TB 的残差；读上面生成的 data/band_tnn_gw_path.dat
+"$CC" $CFLAGS -o bin/main_residual $LIBSRC src/main_residual.c -lm
+./bin/main_residual > data/report_residual.txt
 
 # 全路径拟合（Step B）：直接读 GW 参考能带，调 tb_set_params 试参数
-"$CC" $CFLAGS -o bin/opt_main $LIBSRC opt_main.c -DNNN_MODEL=1 -lm
-./bin/opt_main > data/opt_report.txt
+"$CC" $CFLAGS -o bin/main_fitting $LIBSRC src/main_fitting.c -DNNN_MODEL=1 -lm
+./bin/main_fitting > data/report_fitting.txt
 
 # 对照组：不拼接、直接按排序块配对（CB_PICK 0,1），同样的拟合再跑一遍。
 # 输出前缀换成 data/sorted_，不会覆盖上面的主结果。
-"$CC" $CFLAGS -o bin/opt_main_sorted $LIBSRC opt_main.c -DNNN_MODEL=1 \
-    -DRECONNECT=0 -DCB_PICK_A=0 -DCB_PICK_B=1 -DOUT_PREFIX='"data/sorted_"' -lm
-./bin/opt_main_sorted > data/opt_report_sorted.txt
+"$CC" $CFLAGS -o bin/main_fitting_unconnected $LIBSRC src/main_fitting.c -DNNN_MODEL=1 \
+    -DRECONNECT=0 -DCB_PICK_A=0 -DCB_PICK_B=1 -DOUT_PREFIX='"data/unconnected_"' -lm
+./bin/main_fitting_unconnected > data/report_fitting_unconnected.txt
 
 # 文档插图的数据：两个拟合表按行并排（gnuplot 只能在一个文件里算列间差）
-awk -f doc/fig/pair.awk data/gw_fit_bands.dat data/sorted_gw_fit_bands.dat > data/fig_stitch.dat
+awk -f doc/fig/pair.awk data/gw_bands.dat data/unconnected_gw_bands.dat > data/fig_stitch.dat
 
 # ---- 作图 ----
 # 阶段一
-plot gnuplot/plot_nn.gp       img/TB-NN.png
-plot gnuplot/plot_tnn.gp      img/TB-NN-NNN-TNN.png
-plot gnuplot/plot_soc.gp      img/TB-NN-NNN-TNN-SOC.png
-plot gnuplot/plot_soc_spin.gp img/TB-NN-NNN-TNN-SOC-SPIN.png
+mkdir -p img/TB
+plot gnuplot/TB/plot_nn.gp       img/TB/NN.png
+plot gnuplot/TB/plot_tnn.gp      img/TB/NN-NNN-TNN.png
+plot gnuplot/TB/plot_soc.gp      img/TB/NN-NNN-TNN-SOC.png
+plot gnuplot/TB/plot_soc_spin.gp img/TB/NN-NNN-TNN-SOC-SPIN.png
 # 阶段二
-plot gnuplot/plot_gw.gp        img/GW-vs-TB.png
-plot gnuplot/plot_fit.gp       img/GW-residual.png
-plot gnuplot/plot_opt.gp       img/GW-fit.png
-plot gnuplot/plot_reconnect.gp img/GW-reconnect.png
-plot gnuplot/plot_gwfit.gp     img/GW-params-landed.png
+mkdir -p img/GW
+plot gnuplot/GW/plot_gw_vs_pbe.gp   img/GW/gw_vs_pbe.png
+plot gnuplot/GW/plot_residual.gp   img/GW/residual.png
+plot gnuplot/GW/plot_fit_result.gp img/GW/fit_result.png
+plot gnuplot/GW/plot_reconnect.gp  img/GW/reconnect.png
+plot gnuplot/GW/plot_result.gp     img/GW/result.png
 # 文档插图（doc/theory.tex）
 plot doc/fig/fig_stitch.gp  doc/fig/fig_stitch.png
 plot doc/fig/fig_fit.gp     doc/fig/fig_fit.png

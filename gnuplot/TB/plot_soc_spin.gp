@@ -2,7 +2,7 @@
 # 输出模式：0 = 弹出 Qt 窗口；1 = 写成 PNG 文件
 # ---------------------------------------------------------------------------
 if (!exists("MODE")) MODE = 1
-OUTFILE = "img/TB-NN-NNN-TNN-SOC-SPIN.png"
+OUTFILE = "img/TB/NN-NNN-TNN-SOC-SPIN.png"
 # pngcairo 需要 libcairo，缺了可以用 -e "GTERM='png'" 换成老终端（见 build.sh）
 if (!exists("GTERM")) GTERM = "pngcairo"
 

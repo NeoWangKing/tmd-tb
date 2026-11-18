@@ -1,8 +1,8 @@
 // 拟合诊断：GW 参考能带 vs 当前 TB 的残差分解（刚性成分 / 形状成分）
-// 读 data/band_gw.dat 与 MoS2-GWBSE-data/wannier90_band.dat，写 data/fit_residual.dat
+// 读 data/band_tnn_gw_path.dat 与 MoS2-GWBSE-data/wannier90_band.dat，写 data/fit_residual.dat
 //
 // 两边都得是拼接后的物理能带（见 src/bandtrack.h），不然交叉处两边身份对不上：
-//   data/band_gw.dat 由 main.c 在 PATH_MODE=1 下输出，列顺序已经是物理能带；
+//   data/band_tnn_gw_path.dat 由 main.c 在 PATH_MODE=1 下输出，列顺序已经是物理能带；
 //   GW 参考在下面先用 band_track 把候选块拼一遍再比。
 
 #include <stdio.h>
@@ -62,7 +62,7 @@ int main(void)
 
     int tb_n, nk, nk2;
     double *tb_k, *tb_e;
-    if (tb_read("data/band_gw.dat", TB_NBAND, &tb_n, &tb_k, &tb_e)) {
+    if (tb_read("data/band_tnn_gw_path.dat", TB_NBAND, &tb_n, &tb_k, &tb_e)) {
         fprintf(stderr, "[ERROR] 读 TB 能带失败，先跑 ./build.sh 的 gw 目标\n");
         return 1;
     }
@@ -112,7 +112,7 @@ int main(void)
     }
 
     printf("拟合诊断（Step A）：GW 参考 vs 当前 TB\n");
-    printf("  TB : data/band_gw.dat                       %d 点 -> 去重 %d 点\n", tb_n, nk);
+    printf("  TB : data/band_tnn_gw_path.dat                       %d 点 -> 去重 %d 点\n", tb_n, nk);
     printf("  GW : MoS2-GWBSE-data/wannier90_band.dat     %d 带 x %d 点\n", gw.nband, gw.nk);
     printf("  k 轴最大偏差 = %.2e Å^-1\n\n", dk);
 
