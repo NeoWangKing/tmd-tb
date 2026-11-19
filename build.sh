@@ -12,7 +12,7 @@ set -xe
 cd "$(dirname "$0")"
 
 CFLAGS="-Wall -Wextra -std=c99 -O2 -I. -Iinclude"
-LIBSRC="include/mat.c include/tb.c include/herm3.c include/kpath.c include/bandtrack.c include/gwdata.c include/strap.c"
+LIBSRC="include/mat.c include/tb.c include/herm3.c include/kpath.c include/gwdata.c include/strap.c"
 SRC="src/main.c $LIBSRC"
 
 mkdir -p bin data img
@@ -93,6 +93,11 @@ build_run tnn_gw_fit  -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
     -DRECONNECT=0 -DCB_PICK_A=0 -DCB_PICK_B=1 -DOUT_PREFIX='"data/unconnected_"' -lm
 ./bin/main_fitting_unconnected > data/report_fitting_unconnected.txt
 
+# 式 (6) 的核矩阵：K 点附近 N_k×N_k 网格上组装，参数用 GW 拟合那一套
+# 网格与自旋两块都在程序里定，不需要额外的宏
+"$CC" $CFLAGS -o bin/main_bse_kernel src/main_bse_kernel.c $LIBSRC -lm
+./bin/main_bse_kernel 16 > data/report_bse_kernel.txt
+
 # 文档插图的数据：两个拟合表按行并排（gnuplot 只能在一个文件里算列间差）
 awk -f doc/fig/pair.awk data/gw_bands.dat data/unconnected_gw_bands.dat > data/fig_stitch.dat
 
@@ -118,3 +123,5 @@ plot doc/fig/fig_keldysh.gp doc/fig/fig_keldysh.png
 if [ -n "$SKIPPED" ]; then
     echo "[WARN] 没装 gnuplot，这些图没生成：$SKIPPED" >&2
 fi
+
+

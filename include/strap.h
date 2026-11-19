@@ -80,4 +80,11 @@ int strap_reconnect(StrapBands *strap, size_t anchor);
 // 总粗糙度 Σ(二阶差分)²，用来判断拼接前后哪一份更像物理能带
 double strap_roughness(const StrapBands *strap);
 
+// 裸数组版的最小曲率拼接，省得调用方自己装 StrapBands：
+//   values[b*nk + i] 是第 b 条候选带在 k_i 的值，每个 k 点内部已按能量升序
+//   out[b*nk + i]    是拼接结果，带编号按锚点处的能量顺序
+// 等价于 strap_new_band 逐点填 → strap_reconnect → 取回数组。
+int strap_reconnect_array(size_t nk, size_t nb, const double *values,
+                          size_t anchor, double *out);
+
 #endif

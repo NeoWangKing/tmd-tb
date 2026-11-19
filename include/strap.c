@@ -568,3 +568,47 @@ double strap_roughness(const StrapBands *s)
     }
     return sum;
 }
+
+// 裸数组版入口：内部装一遍 StrapBands，用完就释放
+int strap_reconnect_array(size_t nk, size_t nb, const double *values,
+                          size_t anchor, double *out)
+{
+    if (!values || !out) {
+        fprintf(stderr, "[ERROR] reconnect_array: null pointer\n");
+        return 1;
+    }
+    if (nb < 2 || nk < 3) {
+        fprintf(stderr, "[ERROR] reconnect_array: need nb >= 2 and nk >= 3 (got %zu, %zu)\n", nb, nk);
+        return 1;
+    }
+
+    StrapBands s;
+    strap_init(&s);
+    for (size_t b = 0; b < nb; ++b) {
+        Band *band = strap_new_band(&s);
+        if (!band) {
+            fprintf(stderr, "[ERROR] reconnect_array: cannot allocate band %zu\n", b);
+            strap_free(&s);
+            return 1;
+        }
+        for (size_t i = 0; i < nk; ++i) {
+            if (band_push(band, (double)i, values[b * nk + i])) {
+                fprintf(stderr, "[ERROR] reconnect_array: cannot push point %zu of band %zu\n", i, b);
+                strap_free(&s);
+                return 1;
+            }
+        }
+    }
+
+    if (strap_reconnect(&s, anchor)) {
+        strap_free(&s);
+        return 1;
+    }
+
+    for (size_t b = 0; b < nb; ++b)
+        for (size_t i = 0; i < nk; ++i)
+            out[b * nk + i] = s.bands[b].values[i];
+
+    strap_free(&s);
+    return 0;
+}

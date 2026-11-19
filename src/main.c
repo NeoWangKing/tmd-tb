@@ -6,7 +6,7 @@
 #include "tb.h"
 #include "herm3.h"
 #include "kpath.h"
-#include "bandtrack.h"
+#include "strap.h"
 
 // 考虑 SOC 的时候能带分裂，需要考虑 6 条能带
 #if SOC_MODEL
@@ -182,7 +182,7 @@ int main(void)
     }
 #endif
     // 能带表先整条路径算完存下来，最后一起输出。阶段二要先把排序本征值拼回物理能带，
-    // 而拼接（斜率外推，见 bandtrack.h）要看前后若干个 k 点，没法边算边打。
+    // 而拼接（斜率外推，见 strap.h）要看前后若干个 k 点，没法边算边打。
     int np = 0;
     for (size_t s = 0; s < num_segments; s++) np += path[s].steps + 1;
 
@@ -241,7 +241,7 @@ int main(void)
     {
         int anchor = path[0].steps;     // K 点（Γ→K 段的末点），三条带在那里分得最开
         double *trk = malloc(sizeof *trk * np * TB_NBAND);
-        if (!trk || band_track(np, TB_NBAND, tab_e, anchor, trk)) {
+        if (!trk || strap_reconnect_array(np, TB_NBAND, tab_e, anchor, trk)) {
             fprintf(stderr, "[ERROR] 能带拼接失败\n");
             return 1;
         }

@@ -1,16 +1,16 @@
 // 拟合诊断：GW 参考能带 vs 当前 TB 的残差分解（刚性成分 / 形状成分）
 // 读 data/band_tnn_gw_path.dat 与 MoS2-GWBSE-data/wannier90_band.dat，写 data/fit_residual.dat
 //
-// 两边都得是拼接后的物理能带（见 src/bandtrack.h），不然交叉处两边身份对不上：
+// 两边都得是拼接后的物理能带（见 include/strap.h），不然交叉处两边身份对不上：
 //   data/band_tnn_gw_path.dat 由 main.c 在 PATH_MODE=1 下输出，列顺序已经是物理能带；
-//   GW 参考在下面先用 band_track 把候选块拼一遍再比。
+//   GW 参考在下面先用 strap_reconnect_array 把候选块拼一遍再比。
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "config.h"
-#include "bandtrack.h"
+#include "strap.h"
 #include "gwdata.h"
 #include "tb.h"
 
@@ -78,7 +78,7 @@ int main(void)
         int anchor = 0;
         for (int i = 1; i < gw.nk; ++i)
             if (fabs(gw.k[i] - 1.31633) < fabs(gw.k[anchor] - 1.31633)) anchor = i;
-        if (band_track(gw.nk, NCAND, cand, anchor, rec)) { fprintf(stderr, "[ERROR] 重连失败\n"); return 1; }
+        if (strap_reconnect_array(gw.nk, NCAND, cand, anchor, rec)) { fprintf(stderr, "[ERROR] 重连失败\n"); return 1; }
 
         double r0 = 0, r1 = 0;
         for (int c = 0; c < NCAND; ++c)

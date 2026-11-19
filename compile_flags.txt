@@ -1,0 +1,9 @@
+-std=c99
+-I.
+-Iinclude
+-DNNN_MODEL=1
+-DSOC_MODEL=1
+-DPARAM_SET=2
+-DPATH_MODE=1
+-Wall
+-Wextra

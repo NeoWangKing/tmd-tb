@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include "config.h"
-#include "bandtrack.h"
+#include "strap.h"
 #include "gwdata.h"
 #include "tb.h"
 #include "herm3.h"
@@ -118,7 +118,7 @@ static void model_bands(const double *p, TB_Hop *hop)
         for (int b = 0; b < 3; ++b) mb_raw[b*nk + i] = e[b];
     }
 #if RECONNECT
-    band_track(nk, 3, mb_raw, track_anchor, mb_trk);
+    strap_reconnect_array(nk, 3, mb_raw, track_anchor, mb_trk);
 #else
     for (int b = 0; b < 3; ++b)
         for (int i = 0; i < nk; ++i) mb_trk[b*nk + i] = mb_raw[b*nk + i];
@@ -190,7 +190,7 @@ int main(void)
 #endif
         mb_raw = malloc(sizeof(double) * 3 * nk);
         mb_trk = malloc(sizeof(double) * 3 * nk);
-        if (band_track(nk, NCAND, cand, anchor, recon)) {
+        if (strap_reconnect_array(nk, NCAND, cand, anchor, recon)) {
             fprintf(stderr, "[ERROR] 参考能带重连失败\n");
             return 1;
         }
