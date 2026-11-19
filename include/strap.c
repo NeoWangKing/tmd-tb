@@ -89,6 +89,20 @@ int band_push(Band *b, double key, double value)
     return 0;
 }
 
+int band_copy(Band *dst, Band *src)
+{
+    if (!src) return 1;
+    if (band_reserve(dst, src->count)) return 1;
+    dst->count = src->count;
+    dst->capacity = src->capacity;
+    for(size_t i=0; i<dst->count; i++) {
+        dst->keys[i] = src->keys[i];
+        dst->values[i] = src->values[i];
+    }
+
+    return 0;
+}
+
 void strap_init(StrapBands *s)
 {
     if (!s) return;
@@ -138,6 +152,19 @@ Band *strap_new_band(StrapBands *s)
     if (strap_reserve(s, s->count + 1)) return NULL;
     band_init(&s->bands[s->count]);
     return &s->bands[s->count++];
+}
+
+int strap_copy(StrapBands *dst, StrapBands *src)
+{
+    if (!src) return NULL;
+    if (strap_reserve(dst, src->count)) return NULL;
+    dst->count = src->count;
+    dst->capacity = src->capacity;
+    for(size_t i=0; i<dst->count; i++) {
+        band_copy(dst->bands[i], src->bands[i]);
+    }
+
+    return 0;
 }
 
 int strap_check_uniform(const StrapBands *strap)

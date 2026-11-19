@@ -47,6 +47,7 @@ void band_init(Band *b);
 void band_free(Band *b);
 int  band_reserve(Band *b, size_t cap);
 int  band_push(Band *b, double key, double value);
+int  band_copy(Band *dst, Band *src);
 
 // --- 一组带 ---
 // StrapBands 必须先 strap_init（或写成 = {0}），否则 strap_free 会 free 垃圾指针。
@@ -57,6 +58,7 @@ size_t strap_sample_count(const StrapBands *strap);
 // 追加一条空带并返回它的指针。该指针在下一次 strap_push_band 之前有效
 // （bands 数组可能被 realloc 搬走）。
 Band  *strap_new_band(StrapBands *strap);
+int    strap_copy(StrapBands *dst, StrapBands *src);
 
 // 各带点数相同、横坐标逐个相同才返回 0
 int strap_check_uniform(const StrapBands *strap);
