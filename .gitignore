@@ -10,9 +10,9 @@ PhysRevB.97.205409.pdf
 
 # 文献的中文翻译与从中提取的插图：同属受版权保护的衍生内容，不推到公开仓库；
 # 只在本地生成，用 xelatex PhysRevB.97.205409-zh.tex 自行编译。
-reference/*.tex
+!reference/*.tex
+!reference/figs/*
 reference/*.pdf
-reference/figs/
 reference/*.aux
 reference/*.log
 reference/*.out
@@ -23,3 +23,4 @@ reference/presentation1/*.nav
 reference/presentation1/*.out
 reference/presentation1/*.snm
 reference/presentation1/*.toc
+!reference/presentation1/*.pdf

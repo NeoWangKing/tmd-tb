@@ -79,6 +79,14 @@ build_run tnn_gw_path -DNNN_MODEL=1 -DPATH_MODE=1
 # 用落地到 params.h 的 GW 参数算能带（GW 路径）
 build_run tnn_gw_fit  -DNNN_MODEL=1 -DPARAM_SET=2 -DPATH_MODE=1
 
+# ---- 能带身份重连 ----
+# VASP 原始输出里每个 k 点按能量排序，交叉处两条带会互换身份。这里用 strap 的最小
+# 曲率拼接把它们接回物理能带，输出同格式的列式表（gnuplot/TB-reconnected 下的脚本
+# 读 PBE 那一份）。锚点由 strap_find_anchor 自动选，要换就传第 3 个参数（0 基，1..nk-2）。
+"$CC" $CFLAGS -o bin/main_reconnect_pbe src/main_reconnect_pbe.c $LIBSRC -lm
+./bin/main_reconnect_pbe MoS2-pbe.txt     MoS2-pbe-reconnected.txt
+./bin/main_reconnect_pbe MoS2-pbe-ncl.txt MoS2-pbe-ncl-reconnected.txt
+
 # 拟合诊断（Step A）：GW 参考能带 vs 当前 TB 的残差；读上面生成的 data/band_tnn_gw_path.dat
 "$CC" $CFLAGS -o bin/main_residual $LIBSRC src/main_residual.c -lm
 ./bin/main_residual > data/report_residual.txt
@@ -108,6 +116,12 @@ plot gnuplot/TB/plot_nn.gp       img/TB/NN.png
 plot gnuplot/TB/plot_tnn.gp      img/TB/NN-NNN-TNN.png
 plot gnuplot/TB/plot_soc.gp      img/TB/NN-NNN-TNN-SOC.png
 plot gnuplot/TB/plot_soc_spin.gp img/TB/NN-NNN-TNN-SOC-SPIN.png
+# 拼接之后的对比
+mkdir -p img/TB-reconnected
+plot gnuplot/TB-reconnected/plot_nn.gp       img/TB-reconnected/NN.png
+plot gnuplot/TB-reconnected/plot_tnn.gp      img/TB-reconnected/NN-NNN-TNN.png
+plot gnuplot/TB-reconnected/plot_soc.gp      img/TB-reconnected/NN-NNN-TNN-SOC.png
+plot gnuplot/TB-reconnected/plot_soc_spin.gp img/TB-reconnected/NN-NNN-TNN-SOC-SPIN.png
 # 阶段二
 mkdir -p img/GW
 plot gnuplot/GW/plot_gw_vs_pbe.gp   img/GW/gw_vs_pbe.png

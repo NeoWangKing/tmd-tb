@@ -7,7 +7,12 @@
 \usepackage{booktabs}
 \usepackage{xcolor}
 
-\graphicspath{{../figs/}{../../img/TB/}{../../img/GW/}{../../doc/fig/}}
+\graphicspath{{../figs/}{../../img/TB/}{../../img/TB-reconnected/}{../../img/GW/}{../../doc/fig/}}
+\graphicspath{
+  {../figs/}
+  {../../}
+  {../../doc/fig/}
+}
 
 \usefonttheme{professionalfonts}
 \setbeamertemplate{navigation symbols}{}
@@ -58,7 +63,7 @@
     \end{column}
     \begin{column}{0.44\textwidth}
       \centering
-      \includegraphics[height=0.50\textheight,keepaspectratio]{NN-NNN-TNN-SOC-SPIN.png}\\
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB/NN-NNN-TNN-SOC-SPIN.png}\\
       \scriptsize 上一阶段的能带（NN+NNN+TNN，含 SOC 与自旋）
     \end{column}
   \end{columns}
@@ -126,7 +131,7 @@
     \end{column}
     \begin{column}{0.46\textwidth}
       \centering
-      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{reconnect.png}
+      \includegraphics[width=\linewidth,height=0.62\textheight,keepaspectratio]{img/GW/reconnect.png}
     \end{column}
   \end{columns}
 \end{frame}
@@ -151,6 +156,88 @@
 \end{frame}
 
 %---------------------------------------------------------------------
+\begin{frame}{模型：对上一阶段的一点修正}
+  \begin{columns}[T]
+    \begin{column}{0.54\textwidth}
+      上个阶段我在画图的过程中没有注意能带相交的问题
+
+      不过由于上个阶段拿到的参考数据只有在最后画图的时候有用，所以对模型的结果也没什么影响，只会影响画出来的图片的正确性
+
+      所以也把上个阶段的结果图修正一下
+    \end{column}
+    \begin{column}{0.44\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB-reconnected/NN-NNN-TNN-SOC-SPIN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接后）
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{一点对比}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB/NN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接前）
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB-reconnected/NN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接后）
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{一点对比}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB/NN-NNN-TNN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接前）
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB-reconnected/NN-NNN-TNN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接后）
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{一点对比}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB/NN-NNN-TNN-SOC.png}\\
+      \scriptsize 上一阶段的能带（重新拼接前）
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB-reconnected/NN-NNN-TNN-SOC.png}\\
+      \scriptsize 上一阶段的能带（重新拼接后）
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
+\begin{frame}{一点对比}
+  \begin{columns}[T]
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB/NN-NNN-TNN-SOC-SPIN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接前）
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \centering
+      \includegraphics[height=0.50\textheight,keepaspectratio]{img/TB-reconnected/NN-NNN-TNN-SOC-SPIN.png}\\
+      \scriptsize 上一阶段的能带（重新拼接后）
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%---------------------------------------------------------------------
 \begin{frame}{算法的局限性}
   这套算法在处理自旋导致的能带劈裂时表现一般。
   原因主要在于劈裂的能带在一些位置会简并，这就导致最小曲率的排序时存在
@@ -167,11 +254,10 @@
 \begin{frame}[plain]
   \centering
   {\color{accent}\Huge\bfseries 第二部分}\\[7mm]
-  {\Large 文献导读}\\[4mm]
+  {\Large 一些公式的计算}\\[4mm]
   {\small E. Ridolfi, C. H. Lewenkopf, V. M. Pereira,
   \emph{Phys. Rev. B} \textbf{97}, 205409 (2018)}
 \end{frame}
-
 
 %---------------------------------------------------------------------
 \begin{frame}{目标 2：把式 (6) 的核算出来}
