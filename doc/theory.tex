@@ -47,6 +47,7 @@
 \newpage
 
 %=====================================================================
+\newpage
 \section{引子}
 
 \subsection{上一篇停在哪里}
@@ -132,6 +133,7 @@
 出了问题能定位到具体环节。
 
 %=====================================================================
+\newpage
 \section{记号与约定}
 
 本篇沿用上一篇的记号，只把用到的部分列在下面，其余的推导见上一篇。
@@ -219,6 +221,7 @@ $\kk$ 以 $1/l$ 为单位并省掉了 $l$。
 与上面的写法互为复共轭，本征值相同。
 
 %=====================================================================
+\newpage
 \section{为什么把拟合目标换成 GW 能带}
 
 \subsection{PBE 能带}
@@ -268,6 +271,7 @@ GW 修正对不同谷、不同能带并不均匀，而三能带模型只有一�
 作为后面比较激子能量时的系统偏差。
 
 %=====================================================================
+\newpage
 \section{GW 参考能带与能带身份\done}
 
 \subsection{数据}
@@ -351,6 +355,7 @@ $K$ 谷附近模型的第二条导带能量较高。
 
 
 %=====================================================================
+\newpage
 \section{在 GW 能带上重新拟合参数\done}
 
 \subsection{损失函数}
@@ -432,6 +437,7 @@ GW 的直接带隙为 2.6416~eV，相差 13~meV。
 
 
 %=====================================================================
+\newpage
 \section{介电屏蔽与 Keldysh 势\todo}
 \label{sec:keldysh}
 
@@ -506,47 +512,40 @@ $r\gg r_0$ 时 $u(r)\propto1/r$，$r\ll r_0$ 时按 $\log r$ 发散。
 式~\eqref{eq:keldysh_r}~只用来核对量纲与长程行为。
 
 %=====================================================================
+\newpage
 \section{第二个目标：把式 (6) 的核算出来\todo}
 \label{sec:bse}
 
-这一节只做一件事：把论文式~(6) 的核矩阵元算出来。
-写的时候按做题的顺序走：先说清楚已知什么、要求什么，再一步一步算，
-每一步配一个能手算的小例子，最后把结果排成矩阵并检查。
+\subsection{目标}
 
-\subsection{题目：已知、求、产出}
-
-\textbf{已知。}
+\textbf{已知：}
 \begin{enumerate}
-  \item 一个紧束缚哈密顿量 $H(\kk)$。把 $\kk$ 固定下来，它就是一个普通的有限维矩阵；
-        本课题的模型是 $6\times6$（三个 $d$ 轨道乘两个自旋）。
+  \item 一个紧束缚哈密顿量 $H(\kk)$。
   \item 每个 $\kk$ 点上解出来的本征值 $\eps_{n\kk}$ 与本征矢 $C^{n}_{\alpha\kk}$。
         这里 $n$ 是能带编号，$\alpha$ 是轨道编号。
-  \item 屏蔽库仑势 $u(q)$ 的表达式，以及 $r_0$、$\eps_d$ 两个介电参数（第~\ref{sec:keldysh}~节）。
+  \item 屏蔽库仑势 $u(q)$ 的表达式，以及 $r_0$、$\eps_d$ 两个介电参数。
 \end{enumerate}
 
-\textbf{求。}
+\textbf{求：}
 对所有 $\kk$、$\kq$，以及所有导带 $c,c'$ 与价带 $v,v'$，算出
 \begin{equation}
 W^{(d)}_{cv\kk,c'v'\kq}=u(\kk-\kq)\,I^{*}_{c'\kq,c\kk}\,I_{v'\kq,v\kk},
 \label{eq:kernel}
 \end{equation}
-这就是论文的式~(6)。$I$ 叫轨道交叠，下一步会给定义。
 
-\textbf{产出。}
-一个方阵，行和列都用三元组 $(\kk,c,v)$ 编号，维数
+\textbf{产出：}
+一个方阵，行和列用三元组 $(\kk,c,v)$ 编号，维数
 \begin{equation*}
 N_{\mathrm{tot}}=N_k^2\times N_c\times N_v .
 \end{equation*}
-这个方阵加上对角项 $E_{cv\kk}=\eps_{c\kk}-\eps_{v\kk}$，
-就是目标二要交给目标三的东西。
 
-这个核用在哪里，先交代一句，省得算完不知道干什么用。
 激子态写成电子-空穴对的线性组合
 \begin{equation}
 |M\rangle=\sum_{cv\kk}A^{M}_{cv\kk}\,|v\kk\to c\kk\rangle ,
 \label{eq:basis}
 \end{equation}
-代入多体薛定谔方程后得到本征方程
+代入多体薛定谔方程后得到本征方程，
+也就是论文的式~(5)。式~\eqref{eq:kernel}~是它左边的核；
 \begin{equation}
 E_{cv\kk}A^{M}_{cv\kk}
 +\frac{1}{V}\sum_{c'v'\kq}W_{cv\kk,c'v'\kq}A^{M}_{c'v'\kq}
@@ -554,8 +553,6 @@ E_{cv\kk}A^{M}_{cv\kk}
 \qquad V=A_cN_k^2 ,
 \label{eq:bse}
 \end{equation}
-也就是论文的式~(5)。式~\eqref{eq:kernel}~是它左边的核；
-怎么解式~\eqref{eq:bse}~属于目标三，这里不展开。
 
 \subsection{符号对照表}
 
@@ -588,34 +585,14 @@ $V$ & 晶体总面积 $A_cN_k^2$ & $N_k=60$ 时 $3.1\times10^4$~\AA$^2$\\
 \begin{equation}
 H(\kk)\,\mathbf u_{n\kk}=\eps_{n\kk}\,\mathbf u_{n\kk},
 \qquad
-\mathbf u_{n\kk}=\big(C^{n}_{1\kk},C^{n}_{2\kk},\dots,C^{n}_{\alpha\kk},\dots\big)^{T}.
+\mathbf u_{n\kk}=\left(C^{n}_{1\kk},C^{n}_{2\kk},\dots,C^{n}_{\alpha\kk}\right)^{T}.
 \label{eq:eig}
 \end{equation}
-$\mathbf u_{n\kk}$ 是一个列向量，长度等于轨道数（本课题是 6）。
-解一次得到一个本征值和对应的一个本征矢；把 $6$ 个都解出来，
-就得到 $6$ 个 $\eps_{n\kk}$ 和 $6$ 个长度为 6 的列向量。
+$\mathbf u_{n\kk}$ 是一个列向量，长度等于轨道数 6。
+把 $6$ 个都解出来， 就得到 $6$ 个 $\eps_{n\kk}$ 和 $6$ 个长度为 6 的列向量。
 
-小例子：先看一个能手算的 $2\times2$ 情形，
-\begin{equation*}
-H=\begin{pmatrix}2&1\\[1pt]1&3\end{pmatrix}.
-\end{equation*}
-解本征值的方程是 $\det(H-\lambda I)=0$，即
-\begin{equation*}
-(2-\lambda)(3-\lambda)-1=\lambda^2-5\lambda+5=0
-\;\Longrightarrow\;
-\lambda=\frac{5\pm\sqrt5}{2}=3.618,\ 1.382 .
-\end{equation*}
-把 $\lambda=1.382$ 代回 $(H-\lambda I)\mathbf u=0$，第一行给出
-$0.618\,u_1+u_2=0$，取 $u_1=1$ 得 $u_2=-0.618$。
-归一化（让 $u_1^2+u_2^2=1$）得到
-\begin{equation*}
-\mathbf u_1=(0.851,\,-0.526)^T,\qquad
-\mathbf u_2=(0.526,\,0.851)^T .
-\end{equation*}
-这两个向量正交：$0.851\times0.526+(-0.526)\times0.851=0$。
-
-本课题的 $6\times6$ 矩阵不方便手算，交给数值对角化。
-要点只有一条：解出来的本征矢必须归一化，否则后面算出的交叠积分会整体偏大或偏小。
+$6\times6$ 矩阵不方便手算，交给数值对角化。
+解出来的本征矢必须归一化，否则后面算出的交叠积分会整体偏大或偏小。
 
 \subsection{第二步：把本征矢的相位定死}
 
@@ -624,11 +601,9 @@ $0.618\,u_1+u_2=0$，取 $u_1=1$ 得 $u_2=-0.618$。
 H\,(e^{\ii\varphi}\mathbf u)=e^{\ii\varphi}H\mathbf u
 =e^{\ii\varphi}\eps\,\mathbf u=\eps\,(e^{\ii\varphi}\mathbf u).
 \end{equation*}
-$\varphi$ 可以随便取，这个自由度叫相位任意性。
-数值对角化每次给的 $\varphi$ 都不一样，必须先把它定下来，
-否则后面算出的交叠积分每次都不同。
+$\varphi$ 有相位任意性，必须先把它定下来， 否则后面算出的交叠积分每次都不同。
 
-定法是这样：把每条带在轨道上的分量加起来，得到一个复数
+把每条带在轨道上的分量加起来，得到一个复数
 \begin{equation}
 S_{n\kk}=\sum_{\alpha}C^{n}_{\alpha\kk},
 \label{eq:S}
@@ -640,17 +615,6 @@ C^{n}_{\alpha\kk}\;\longrightarrow\;C^{n}_{\alpha\kk}\,e^{-\ii\arg S_{n\kk}},
 \sum_{\alpha}C^{n}_{\alpha\kk}\in\mathbb{R}.
 \label{eq:gauge}
 \end{equation}
-
-小例子：取
-$\mathbf C=\frac{1}{\sqrt2}(1,\ \ii)^T$，它是归一化的（$\frac12+\frac12=1$）。
-求和得
-$S=\frac{1}{\sqrt2}(1+\ii)$，模长是 1，辐角是 $\pi/4$。
-乘上 $e^{-\ii\pi/4}$ 之后
-\begin{equation*}
-\mathbf C=\frac{1}{\sqrt2}e^{-\ii\pi/4}(1,\ \ii)^T
-=(0.5-0.5\ii,\ 0.5+0.5\ii)^T ,
-\end{equation*}
-两个分量之和等于 $1$，是实数，相位定住了；归一化没有变（$0.5+0.5=1$）。
 
 要注意的是，如果某条带在所有轨道上的分量加起来恰好为零，
 $S_{n\kk}=0$，辐角无法定义，这个办法失效。
@@ -667,18 +631,7 @@ I_{a\kq,b\kk}=\sum_{\alpha}C^{a*}_{\alpha\kq}\,C^{b}_{\alpha\kk}.
 逐分量相乘（第一个取复共轭）再相加。
 $I=1$ 表示两个态完全一样，$I=0$ 表示正交，一般介于两者之间。
 
-小例子：取
-$\mathbf a=\frac{1}{\sqrt2}(1,\ \ii)^T$，
-$\mathbf b=\frac{1}{\sqrt2}(1,\ 1)^T$，则
-\begin{equation*}
-I=\bar a_1b_1+\bar a_2b_2
-=\frac{1}{\sqrt2}\cdot\frac{1}{\sqrt2}
-+\frac{-\ii}{\sqrt2}\cdot\frac{1}{\sqrt2}
-=0.5-0.5\ii ,
-\qquad |I|^2=0.5 .
-\end{equation*}
-
-三条可以直接拿来检查程序的性质：
+性质（可以用来验证）
 \begin{enumerate}
   \item 同一个 $k$ 点上同一条带：$I_{a\kk,a\kk}=\sum_\alpha|C^{a}_{\alpha\kk}|^2=1$（归一化）。
   \item 同一个 $k$ 点上不同能带：$I_{a\kk,b\kk}=0$（本征矢互相正交）。
@@ -688,9 +641,8 @@ I=\bar a_1b_1+\bar a_2b_2
         \label{eq:I_herm}
         \end{equation}
 \end{enumerate}
-第一条最容易查：程序跑完，$I_{a\kk,a\kk}$ 与 1 的差有多大，就直接反映对角化的精度。
 
-\subsection{第四步：算屏蔽库仑势 $u(q)$}
+\subsection{第四步：算屏蔽库仑势 \texorpdfstring{$u(q)$}{u(q)}}
 
 二维体系的屏蔽势取 Keldysh 形式（第~\ref{sec:keldysh}~节，论文式~(8)--(10)）
 \begin{equation}
@@ -701,29 +653,14 @@ u(q)=-\frac{e^2}{2\eps_0\eps_d\,q\,\big(1+r_0q\big)},
 r_0=\frac{2\eps_2^2-\eps_1^2-\eps_3^2}{2\eps_2(\eps_1+\eps_3)}\,d .
 \label{eq:keldysh2}
 \end{equation}
-这里的 $q$ 不是一维的数，而是两个 $k$ 点之差的长度
+这里的 $q$ 是两个 $k$ 点之差的长度
 \begin{equation}
 q=|\kk-\kq|=\sqrt{(k_x-k'_x)^2+(k_y-k'_y)^2}.
 \label{eq:qmod}
 \end{equation}
 $u$ 只依赖这个长度，与方向无关，所以可以预先按 $q$ 做成表，需要时查表。
 
-数值代入：空气/二氧化硅界面取 $\eps_1=1$、$\eps_3=4$，于是 $\eps_d=2.5$；
-单层厚度 $d=6$~\AA{}、介电常数 $\eps_2=12$，代入上式得 $r_0=13.55$~\AA{}。
-用 $e^2/(4\pi\eps_0)=14.4$~eV$\cdot$\AA{}，则
-\begin{equation*}
-\frac{e^2}{2\eps_0\eps_d}=2\pi\times\frac{14.4}{2.5}=36.2\ \text{eV}\cdot\text{\AA},
-\end{equation*}
-于是
-\begin{equation*}
-u(q)=-\frac{36.2}{q\,(1+13.55\,q)}\ \text{eV}\cdot\text{\AA}^2
-\qquad (q\ \text{以 \AA}^{-1}\ \text{为单位}).
-\end{equation*}
-代入几个值感受一下量级：$q=0.2$~\AA$^{-1}$ 时 $u=-48.8$~eV$\cdot$\AA$^2$；
-$q=1/r_0=0.0738$~\AA$^{-1}$ 时 $u=-245$~eV$\cdot$\AA$^2$；
-$q$ 越小 $u$ 越大，$q\to0$ 时发散——这正是第六步要处理的麻烦。
-
-两个区域：$r_0q\ll1$ 时分母约为 $q$，$u\propto1/q$，对应实空间的长程 $1/r$；
+$r_0q\ll1$ 时分母约为 $q$，$u\propto1/q$，对应实空间的长程 $1/r$；
 $r_0q\gg1$ 时分母约为 $r_0q^2$，$u\propto1/q^2$。
 两者的分界在 $q\approx1/r_0=0.074$~\AA$^{-1}$。
 
@@ -739,37 +676,20 @@ W^{(d)}_{cv\kk,c'v'\kq}
 \end{equation*}
 乘积一般仍是复数，因为两个 $I$ 来自不同的带。
 
-小例子：设某个 $(\kk,\kq)$ 对上 $u=-245$~eV$\cdot$\AA$^2$，
-$I_{c'\kq,c\kk}=0.5-0.5\ii$，$I_{v'\kq,v\kk}=1$（同一个价带、$\kq$ 与 $\kk$ 很接近时的极限），则
-\begin{equation*}
-W^{(d)}=(-245)\times(0.5+0.5\ii)\times1
-=-122.5\,(1+\ii)\ \text{eV}\cdot\text{\AA}^2 .
-\end{equation*}
-别忘了式~\eqref{eq:bse}~里还有一个 $1/V$。$N_k=60$ 时 $V=A_cN_k^2=8.65\times3600=3.1\times10^4$~\AA$^2$，
-所以矩阵里实际存的是
-\begin{equation*}
-\frac{W^{(d)}}{V}=\frac{-122.5(1+\ii)}{3.1\times10^4}
-\approx-3.9\times10^{-3}(1+\ii)\ \text{eV},
-\end{equation*}
-也就是几 meV 的量级。单个矩阵元是 meV 量级，
-但求和有 $N_k^2N_cN_v$ 项，最后能给出几百 meV 的束缚能，量级上是自洽的。
-
 \subsection{第六步：$\kk=\kq$ 的对角元要单独处理}
 \label{sec:reg}
 
 式~\eqref{eq:qmod}~在 $\kq=\kk$ 时给出 $q=0$，
-而式~\eqref{eq:keldysh2}~在 $q=0$ 处分母为零，$u$ 发散。
-矩阵的对角块里全是这种项，不能直接丢，也不能直接算。
+这样的话，式~\eqref{eq:keldysh2}~在 $q=0$ 处分母为零，$u$ 发散。
 
 处理办法是把它换成 $q=0$ 附近一个小区域上的平均值（论文式~(17)）
 \begin{equation}
 u(\qq\approx0)\;\longrightarrow\;\frac{1}{\Delta q}\int_{\Delta q}u(\qq)\,\dd\qq
-\approx\frac{c\,aN_k}{2\pi}\left[\alpha_1+\alpha_2\frac{2\pi r_0}{aN_k}
+\approx-\frac{e^2\,aN_k}{4\pi\eps_0\eps_d}\left[\alpha_1+\alpha_2\frac{2\pi r_0}{aN_k}
 +\alpha_3\left(\frac{2\pi r_0}{aN_k}\right)^2\right],
-\qquad c\equiv-\frac{e^2}{2\eps_0\eps_d} .
 \label{eq:reg}
 \end{equation}
-$\Delta q$ 是每个 $k$ 点在倒空间里代表的面积；$\alpha_{1,2,3}$ 是常数，
+$\Delta q$ 是每个 $k$ 点在倒空间里代表的面积；$\alpha_{1,2,3}$ 
 由这个小区域的形状和展开到几阶决定。
 
 展开参数是
@@ -781,7 +701,7 @@ $0.45$ 不算小，所以 $\alpha_2$、$\alpha_3$ 两项不能随便丢。
 因为被丢掉的项在 $N_k=60$ 附近还有百分之几十的贡献。
 
 本课题的做法是直接对式~\eqref{eq:reg}~里的积分做数值求积，
-不引入拟合系数，从而把"用哪一组 $\alpha$"这个问题绕开。
+不引入拟合系数，从而绕开"用哪一组 $\alpha$"这个问题。
 
 \subsection{第七步：把矩阵元排成矩阵}
 
@@ -794,10 +714,6 @@ $0.45$ 不算小，所以 $\alpha_2$、$\alpha_3$ 两项不能随便丢。
 \end{equation}
 列号用同样的规则给 $(\kq,c',v')$ 编。
 
-小例子：取 $N_k=2$（网格 $2\times2$，共 4 个 $k$ 点）、$N_c=2$、$N_v=1$，
-矩阵维数 $N_{\mathrm{tot}}=4\times2\times1=8$。
-三元组 $(\kk_2,c=1,v=0)$ 的行号是 $2\times2+1\times1+0=5$。
-
 排好之后，式~\eqref{eq:bse}~可以写成标准的矩阵本征值问题
 \begin{equation}
 \mathcal{H}\mathbf A=E\mathbf A,
@@ -808,7 +724,7 @@ $0.45$ 不算小，所以 $\alpha_2$、$\alpha_3$ 两项不能随便丢。
 \label{eq:bse_matrix}
 \end{equation}
 
-$W$ 是厄米矩阵，这一点可以直接验：把行列交换并对整体取复共轭，
+$W$ 是厄米矩阵，把行列交换并对整体取复共轭，
 由式~\eqref{eq:I_herm}~的 $I_{a\kq,b\kk}=I^{*}_{b\kk,a\kq}$ 与 $u(-\qq)=u(\qq)$ 得到
 \begin{equation*}
 \left[\mathcal{H}_{(c'\kq),(c\kk)}\right]^{*}
@@ -819,8 +735,6 @@ $W$ 是厄米矩阵，这一点可以直接验：把行列交换并对整体取�
 厄米这一点很重要：它保证解出来的 $E_M$ 是实数。
 
 \subsection{检查答案}
-
-题目做完要验算。这一步有四条检查，按顺序做。
 
 \begin{enumerate}
   \item \textbf{归一化检查。} 对每条带、每个 $k$ 点算 $I_{a\kk,a\kk}$，它应当等于 1。
@@ -835,8 +749,8 @@ $W$ 是厄米矩阵，这一点可以直接验：把行列交换并对整体取�
         判断实现对不对，看的是这条曲线，而不是单个 $N_k$ 下的数字。
 \end{enumerate}
 
-四条都过了，才算把式~\eqref{eq:kernel}~算对，可以交给目标三去解式~\eqref{eq:bse}。
-
+%-------------------------------------------------------------------------------------
+\newpage
 \section{光学响应\todo}
 
 有了本征值与本征矢，线性电导率由费米黄金规则给出
@@ -872,6 +786,7 @@ $\mathrm{FS}$ 是基态，$\hat P_x$ 是总动量算符的 $x$ 分量。
 式~\eqref{eq:sigma_explicit}~留作下一步，用于把计算谱与实验吸收谱对照。
 
 %=====================================================================
+\newpage
 \section{理论公式与程序的对应}
 
 表~\ref{tab:map}~列出各部分公式在程序中的位置。
@@ -901,6 +816,7 @@ BSE 矩阵 & 式~\eqref{eq:bse_matrix} & 待实现\\
 \end{table}
 
 %=====================================================================
+\newpage
 \section{收敛性与误差来源}
 
 判断实现是否正确，除了核对公式，还要看几个可以独立验证的极限。
@@ -930,6 +846,7 @@ $q\to0$ 附近的处理仍在显著影响结果。
 可以通过改变锚点或相位约定估计其量级。
 
 %=====================================================================
+\newpage
 \section{小结}
 
 这一篇把上一篇的三能带模型推到了激子层面。
